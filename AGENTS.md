@@ -36,12 +36,16 @@ python tools/mitm.py --listen 6000 --target 5000 --tamper   # أداة MITM
 - الترتيب التعليمي لأوضاع AES: ECB → CBC → CTR → GCM.
 
 ## حماية لوحة التحكم (control plane)
-- `/settings` وكل `/api/*` تتطلب **HTTP Basic** (`ADMIN_USER` / `ADMIN_PASSWORD`).
+- `/settings` وكل `/api/*` تتطلب **جلسة موقّعة (cookie)**، لا HTTP Basic.
   السبب: من يصل إليها يستطيع إطفاء التشفير أو التحويل إلى ECB — أي إبطال الأمان كله.
-- `/chat` **عامة** (هي الدردشة نفسها، وعميلها محمي بـ ECDH/AES-GCM).
+- المسار: `POST /login` (نموذج) → كوكي `sc_session` موقّع بـ HMAC-SHA256
+  (صلاحية 12 ساعة، `HttpOnly`, `SameSite=Lax`) → `/logout` يبطله.
+- `/` صفحة هبوط عامة، `/chat` عامة، `/settings` بلا جلسة → 302 إلى `/login`،
+  و`/api/*` بلا جلسة → 401. `/favicon.ico` و`/robots.txt` عامان.
 - بدون `ADMIN_PASSWORD` يُولَّد سرّ عشوائي عند كل تشغيل ويُطبع في سجل السيرفر
   (`config.ADMIN_PASSWORD_GENERATED`). في الإنتاج اضبطه ليكون ثابتاً.
-- فحص الصحة (`healthCheckPath`) يستخدم `/chat` لا `/settings` — لأن الأخيرة 401.
+- `config.SESSION_SECRET` يُولَّد عند كل تشغيل → إعادة التشغيل تُبطل الجلسات.
+- فحص الصحة (`healthCheckPath`) يستخدم `/chat` لا `/settings` (الأخيرة تحوّل 302).
 
 ## ملاحظة: ازدواجية الرسالة عند المرسل
 `hub.relay` تبثّ لكل المتصلين **بمن فيهم المرسل**، لذا أي واجهة عميل يجب

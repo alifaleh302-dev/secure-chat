@@ -71,7 +71,7 @@ def _handle_http(conn: socket.socket, hub: ChatHub) -> None:
             body += conn.recv(content_length - len(body))
 
     status, ctype, payload, extra = webui.route(method, path, body, hub, headers)
-    reason = {200: "OK", 400: "Bad Request", 401: "Unauthorized",
+    reason = {200: "OK", 302: "Found", 400: "Bad Request", 401: "Unauthorized",
               404: "Not Found"}.get(status, "OK")
     response = (
         f"HTTP/1.1 {status} {reason}\r\n"

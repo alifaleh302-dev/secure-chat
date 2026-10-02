@@ -76,6 +76,10 @@ _ADMIN_PW_FROM_ENV = os.environ.get("ADMIN_PASSWORD", "").strip()
 ADMIN_PASSWORD_GENERATED = not _ADMIN_PW_FROM_ENV
 ADMIN_PASSWORD = _ADMIN_PW_FROM_ENV or secrets.token_urlsafe(12)
 
+# سرّ توقيع جلسة لوحة التحكم. يُولَّد عند كل تشغيل — أي أن إعادة تشغيل
+# السيرفر تُبطل كل الجلسات (وهذا مقبول تعليمياً؛ في الإنتاج ثبّته).
+SESSION_SECRET = secrets.token_bytes(32)
+
 # ============================================================
 # 6) إعدادات الشبكة
 # ============================================================

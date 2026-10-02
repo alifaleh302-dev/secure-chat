@@ -1,5 +1,95 @@
 """صفحات HTML لواجهة التحكم ودردشة المتصفح (قوالب نصية)."""
 
+FAVICON = (
+    b"\x00\x00\x01\x00\x01\x00\x10\x10\x00\x00\x01\x00 \x00\x68\x04\x00\x00"
+    b"\x16\x00\x00\x00" + b"\x00" * (40 + 1024)
+)
+
+LANDING_HTML = r"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دردشة آمنة — مشروع تعليمي</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --line:#30363d; --fg:#e6edf3; --mut:#8b949e; --acc:#2f81f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         font-family:system-ui,Segoe UI,Tahoma,sans-serif; background:var(--bg); color:var(--fg); padding:24px; }
+  .box { max-width:620px; width:100%; background:var(--card); border:1px solid var(--line);
+         border-radius:16px; padding:32px; }
+  h1 { margin:0 0 8px; font-size:24px; }
+  p.sub { margin:0 0 24px; color:var(--mut); font-size:14px; line-height:1.7; }
+  a.card { display:block; text-decoration:none; color:var(--fg); border:1px solid var(--line);
+           border-radius:12px; padding:16px 18px; margin-bottom:12px; transition:.15s; }
+  a.card:hover { border-color:var(--acc); background:#0d1117; }
+  a.card b { display:block; font-size:15px; margin-bottom:4px; }
+  a.card span { color:var(--mut); font-size:13px; }
+  .lock { font-size:12px; color:var(--mut); border-top:1px solid var(--line); margin-top:20px; padding-top:14px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🔐 دردشة آمنة</h1>
+  <p class="sub">مشروع تعليمي: مصافحة WebSocket يدوية + ECDH P-256 + HKDF-SHA256 + AES-GCM،
+     مكتوبة فوق <code>socket</code> الخام بلا مكتبات جاهزة.</p>
+
+  <a class="card" href="/chat">
+    <b>💬 فتح الدردشة →</b>
+    <span>عامة للجميع — القناة محمية بمفاتيح مؤقتة لكل جلسة.</span>
+  </a>
+  <a class="card" href="/settings">
+    <b>⚙️ لوحة التحكم →</b>
+    <span>محمية بكلمة مرور — فيها مفاتيح التبديل التعليمية (التشفير/السلامة/المصادقة).</span>
+  </a>
+
+  <div class="lock">🔒 لوحة التحكم تتطلب تسجيل دخول (المستخدم: <code>admin</code>).</div>
+</div>
+</body>
+</html>"""
+
+
+LOGIN_HTML = r"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تسجيل الدخول — لوحة التحكم</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --line:#30363d; --fg:#e6edf3; --mut:#8b949e; --acc:#2f81f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         font-family:system-ui,Tahoma,sans-serif; background:var(--bg); color:var(--fg); padding:24px; }
+  form { max-width:380px; width:100%; background:var(--card); border:1px solid var(--line);
+         border-radius:16px; padding:28px; }
+  h1 { margin:0 0 6px; font-size:19px; }
+  p { margin:0 0 20px; color:var(--mut); font-size:13px; }
+  label { display:block; font-size:13px; margin:12px 0 6px; color:var(--mut); }
+  input { width:100%; background:#0d1117; color:var(--fg); border:1px solid var(--line);
+          border-radius:9px; padding:11px 13px; font-family:inherit; font-size:14px; }
+  button { width:100%; margin-top:20px; background:var(--acc); color:#fff; border:0;
+           border-radius:9px; padding:12px; font-size:15px; cursor:pointer; font-family:inherit; }
+  .err { background:#3d1418; border:1px solid #f85149; color:#ffb3b8; border-radius:9px;
+         padding:10px 13px; font-size:13px; margin-bottom:8px; }
+  a { color:var(--acc); font-size:13px; display:inline-block; margin-top:16px; }
+</style>
+</head>
+<body>
+<form method="POST" action="/login">
+  <h1>🔒 لوحة التحكم</h1>
+  <p>هذه الصفحة تحكّم في أمان الخادم كله — دخولها محمي.</p>
+  __ERROR__
+  <label for="u">المستخدم</label>
+  <input id="u" name="username" value="admin" autocomplete="username" autofocus>
+  <label for="p">كلمة المرور</label>
+  <input id="p" name="password" type="password" autocomplete="current-password">
+  <button type="submit">دخول</button>
+  <a href="/chat">→ الذهاب إلى الدردشة</a>
+</form>
+</body>
+</html>"""
+
+
 SETTINGS_HTML = r"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -35,7 +125,10 @@ SETTINGS_HTML = r"""<!DOCTYPE html>
 <body>
 <header>
   <h1>🔐 لوحة تحكم السيرفر الآمن</h1>
-  <a class="btn" href="/chat">فتح الدردشة →</a>
+  <span>
+    <a class="btn" href="/chat">فتح الدردشة →</a>
+    <a class="btn" href="/logout" style="background:#30363d">خروج</a>
+  </span>
 </header>
 <div class="wrap">
 
