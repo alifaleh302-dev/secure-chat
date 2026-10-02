@@ -1,0 +1,23 @@
+# لا تنسخ المفاتيح الخاصة إلى صورة Docker أبداً
+crypto/server_identity.key
+crypto/server_identity.pub
+
+# مخلّفات بايثون
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# بيئات افتراضية ومحلية
+.venv/
+venv/
+.env
+
+# أدوات التطوير (لا حاجة لها في الإنتاج)
+.git/
+.gitignore
+tests/
+*.log
+.agent_tmp/
+
+# ملفات نظام
+.DS_Store
