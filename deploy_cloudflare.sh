@@ -57,8 +57,9 @@ fi
 
 echo
 echo "======================================================"
-echo "  🌐 الرابط العام:   $url/chat"
-echo "  ⚙️  الإعدادات:      $url/settings"
+echo "  🏠 الصفحة الرئيسية:  $url"
+echo "  💬 الدردشة:          $url/chat"
+echo "  ⚙️  لوحة التحكم:      $url/settings  (تسجيل دخول)"
 echo "======================================================"
 echo
 echo "  للتوقف:  pkill -f 'cloudflared tunnel --url'; pkill -f 'server.py --port $PORT'"
