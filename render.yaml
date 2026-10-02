@@ -1,0 +1,23 @@
+# إعداد النشر على Render (Blueprint).
+# Render يضخّ متغير PORT تلقائياً، والسيرفر يقرأه من config.py ويستمع عليه.
+services:
+  - type: web
+    name: secure-chat
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /settings
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      # مفاتيح التبديل التعليمية (يمكن تغييرها من لوحة التحكم أثناء التشغيل)
+      - key: ENCRYPTION
+        value: "1"
+      - key: CIPHER
+        value: AES-GCM
+      - key: INTEGRITY
+        value: "1"
+      - key: AUTHENTICATION
+        value: "1"
+      - key: KEY_EXCHANGE
+        value: ECDH
