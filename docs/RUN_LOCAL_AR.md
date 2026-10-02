@@ -40,6 +40,94 @@ python --version      # أو: python3 --version
 - **Windows**: <https://www.python.org/downloads/> — ✅ ضع علامة **"Add Python to PATH"** أثناء التثبيت.
 - **macOS**: `brew install python` أو من python.org
 - **Linux**: `sudo apt install python3 python3-pip`
+- **كالي لينكس**: مثبّت افتراضياً — تخطَّ هذه الخطوة (انظر القسم التالي).
+
+---
+
+## الجزء 1.5 — كالي لينكس (خاص) 🐉
+
+كالي هو Debian، لذا **كل أوامر لينكس هنا تعمل كما هي**. لكن انتبه لأربع نقاط:
+
+### 1) استخدم `python3` و `pip3` (لا `python`)
+
+في كالي غالباً لا يوجد اختصار `python` (إلا إن ثبّتّ `python-is-python3`):
+
+```bash
+python3 --version    # 3.11+ على كالي الحديث
+```
+
+> 💡 إن أردت استخدام `python` مباشرة: `sudo apt install python-is-python3`
+
+### 2) لا تثبّت المكتبات بـ pip نظامياً — استخدم بيئة افتراضية
+
+كالي (كأي Debian حديث) يمنع `pip install` خارج البيئة الافتراضية
+(خطأ `externally-managed-environment`). الحل — وهو الأنظف أصلاً:
+
+```bash
+sudo apt install python3-venv -y      # مرة واحدة إن لم يكن مثبّتاً
+cd secure-chat
+python3 -m venv .venv
+source .venv/bin/activate             # يظهر (.venv) في الطرفية
+pip install -r requirements.txt
+```
+
+بعد التفعيل، `python` داخل البيئة = `python3` — فتعمل أوامر المشروع كما هي.
+
+### 3) الواجهتان الرسوميتان تحتاجان `python3-tk`
+
+كالي يأتي عادةً مع `tkinter`، لكن إن ظهر
+`ModuleNotFoundError: No module named 'tkinter'`:
+
+```bash
+sudo apt install python3-tk -y
+```
+
+> هذا **فقط** للواجهتين (`server_gui.py` و `client_gui.py`).
+> السيرفر والعميل الطرفي **لا يحتاجان** tkinter إطلاقاً.
+
+### 4) تشغيل المشروع — الأمر الكامل
+
+```bash
+# 1) مرة واحدة (يحتاج إنترنت)
+git clone https://github.com/alifaleh302-dev/secure-chat.git
+cd secure-chat
+sudo apt install python3-venv -y
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2) في كل مرة (بلا إنترنت)
+bash run_local.sh
+```
+
+ثم افتح: `http://localhost:5000/chat` (الدردشة) و `http://localhost:5000/settings`
+(لوحة التحكم — المستخدم `admin`، وكلمة المرور تظهر في سجل السيرفر).
+
+**أو الواجهات الرسومية:**
+
+```bash
+python server_gui.py     # إدارة الخادم
+python client_gui.py     # العميل
+```
+
+### 🕵️ ميزة كالي: Wireshark جاهز
+
+Wireshark مثبّت افتراضياً على كالي — مناسب تماماً لتجارب المشروع:
+
+```bash
+sudo wireshark        # أو من القائمة
+```
+
+اختر واجهة **Loopback (`lo`)**، وفلتر `tcp.port == 5000`، ثم اتبع تجارب
+القسم «الجزء 6» أدناه. ولهذا صُمّم المشروع: لترى الفرق بين نص واضح ومشفّر بعينك.
+
+### 🌐 للاتصال من جهاز آخر في الشبكة
+
+```bash
+python3 server.py --host 0.0.0.0 --port 5000
+# من الجهاز الآخر: http://<كالي-ip>:5000/chat
+```
+
+> إن لم يعمل، اسمح بالمنفذ في جدار الحماية: `sudo ufw allow 5000/tcp`
 
 ---
 
@@ -233,6 +321,9 @@ CIPHER=AES-ECB ENCRYPTION=1 INTEGRITY=0 python server.py
 | اللوحة تطلب دخولاً دائماً | لم تضبط `ADMIN_PASSWORD` — اقرأ الكلمة من السجل |
 | المتصفح لا يعرض رسائل عميل بايثون | كلاهما يعمل؟ راجع أن المنفذ نفسه |
 | `python` غير معروف (Windows) | استخدم `py` أو أعد التثبيت مع "Add to PATH" |
+| `externally-managed-environment` (كالي/Debian) | لا تثبّت نظامياً — فعّل بيئة افتراضية: `source .venv/bin/activate` |
+| `No module named 'tkinter'` (كالي) | `sudo apt install python3-tk` (للواجهتين فقط) |
+| `python: command not found` (كالي) | استخدم `python3` أو `sudo apt install python-is-python3` |
 
 ---
 
@@ -251,3 +342,7 @@ bash run_local.sh
 # 3) ثم افتح المتصفح
 #    http://localhost:5000/chat
 ```
+
+> 🐉 **على كالي لينكس:** استبدل `python` بـ `python3` (أو فعّل البيئة الافتراضية
+> أولاً فيعمل `python`)، وثبّت `python3-venv` قبل إنشاء البيئة. التفاصيل في
+> «الجزء 1.5» أعلاه.

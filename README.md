@@ -129,8 +129,10 @@ python client_gui.py     # واجهة العميل: اتصال + محادثة
 python client_gui.py --host 127.0.0.1 --port 5000 --name ali
 ```
 
-> على Debian/Ubuntu قد تحتاج: `sudo apt install python3-tk`
+> على Debian/Ubuntu/كالي قد تحتاج: `sudo apt install python3-tk`
 > (على ويندوز وماك يأتي tkinter مع بايثون جاهزاً).
+> وعلى كالي استخدم `python3` بدل `python`، وفعّل بيئة افتراضية قبل `pip install`
+> (التفاصيل: [`docs/RUN_LOCAL_AR.md`](docs/RUN_LOCAL_AR.md) → الجزء 1.5).
 
 ---
 
