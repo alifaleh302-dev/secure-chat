@@ -35,6 +35,18 @@ python tools/mitm.py --listen 6000 --target 5000 --tamper   # أداة MITM
 - الكود اليدوي **تعليمي فقط** — غير مُدقّق، لا يصلح للإنتاج.
 - الترتيب التعليمي لأوضاع AES: ECB → CBC → CTR → GCM.
 
+## حماية لوحة التحكم (control plane)
+- `/settings` وكل `/api/*` تتطلب **HTTP Basic** (`ADMIN_USER` / `ADMIN_PASSWORD`).
+  السبب: من يصل إليها يستطيع إطفاء التشفير أو التحويل إلى ECB — أي إبطال الأمان كله.
+- `/chat` **عامة** (هي الدردشة نفسها، وعميلها محمي بـ ECDH/AES-GCM).
+- بدون `ADMIN_PASSWORD` يُولَّد سرّ عشوائي عند كل تشغيل ويُطبع في سجل السيرفر
+  (`config.ADMIN_PASSWORD_GENERATED`). في الإنتاج اضبطه ليكون ثابتاً.
+- فحص الصحة (`healthCheckPath`) يستخدم `/chat` لا `/settings` — لأن الأخيرة 401.
+
+## ملاحظة: ازدواجية الرسالة عند المرسل
+`hub.relay` تبثّ لكل المتصلين **بمن فيهم المرسل**، لذا أي واجهة عميل يجب
+ألا تعرض الرسالة محلياً عند الإرسال (وإلا تظهر مرتين). المتصفح يفعل ذلك الآن.
+
 ## المستودع
 - GitHub: https://github.com/alifaleh302-dev/secure-chat (الفرع الافتراضي `main`)
 - الدفع يتطلب `GITHUB_PERSONAL_ACCESS_TOKEN` (توكن `GITHUB_TOKEN` محدود الصلاحيات).
