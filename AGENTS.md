@@ -51,6 +51,15 @@ python tools/mitm.py --listen 6000 --target 5000 --tamper   # أداة MITM
 `hub.relay` تبثّ لكل المتصلين **بمن فيهم المرسل**، لذا أي واجهة عميل يجب
 ألا تعرض الرسالة محلياً عند الإرسال (وإلا تظهر مرتين). المتصفح يفعل ذلك الآن.
 
+## تخصيص الدومين
+- **Cloudflare Tunnel مُسمّى** (`deploy_domain.sh`) هو الأنسب: السيرفر يبقى على
+  socket خام محلياً، والنطاق الثابت + HTTPS يأتيان من Cloudflare.
+  الخطوات: `cloudflared tunnel login` → `tunnel create` → `tunnel route dns` → `tunnel run`.
+- **Render**: `Settings → Custom Domains → Add Custom Domain` ثم أضف CNAME
+  يشير إلى `*.onrender.com`. الخطة المجانية تنام بعد ~15 دقيقة خمول.
+- الرابط السريع `trycloudflare.com` مؤقت ويتغيّر كل تشغيل — للعرض فقط.
+- أسرار النفق (`~/.cloudflared/`, `cert.pem`, `*.json`) في `.gitignore` — لا تُرفع.
+
 ## المستودع
 - GitHub: https://github.com/alifaleh302-dev/secure-chat (الفرع الافتراضي `main`)
 - الدفع يتطلب `GITHUB_PERSONAL_ACCESS_TOKEN` (توكن `GITHUB_TOKEN` محدود الصلاحيات).

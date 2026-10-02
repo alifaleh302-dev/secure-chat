@@ -324,6 +324,73 @@ bash deploy_cloudflare.sh
 
 ---
 
+## 🌐 تخصيص الدومين (نطاقك الخاص)
+
+عندك مساران، حسب أين يعمل السيرفر:
+
+### أ) عبر Cloudflare Tunnel مُسمّى (نطاق ثابت، مجاني، بلا بطاقة)
+
+هذا **الأنسب لمشروعك** لأن السيرفر يبقى يعمل على جهازك (socket خام)،
+وCloudflare تمنحه نطاقك الخاص + HTTPS + دعم WebSocket.
+
+**المتطلبات:** حساب Cloudflare مجاني + نطاق مُضاف إلى Cloudflare
+(أي تغيّر nameservers النطاق إلى Cloudflare — مجاني).
+
+```bash
+# كل شيء بأمر واحد (ينشئ النفق ويربط النطاق ويشغّله):
+DOMAIN=chat.example.com bash deploy_domain.sh
+```
+
+ما يفعله السكربت خطوة بخطوة (يمكنك تنفيذها يدوياً):
+
+```bash
+cloudflared tunnel login                       # يفتح المتصفح، اختر نطاقك
+cloudflared tunnel create secure-chat          # ينشئ النفق + ملف اعتماد
+cloudflared tunnel route dns secure-chat chat.example.com   # سجل CNAME تلقائي
+cloudflared tunnel run secure-chat             # يشغّل النفق
+```
+
+ملف الإعداد `~/.cloudflared/config.yml`:
+
+```yaml
+tunnel: <TUNNEL_ID>
+credentials-file: /home/<user>/.cloudflared/<TUNNEL_ID>.json
+ingress:
+  - hostname: chat.example.com
+    service: http://127.0.0.1:12000
+  - service: http_status:404
+```
+
+**للتشغيل الدائم** (يبقى بعد إغلاق الطرفية وإعادة التشغيل):
+
+```bash
+sudo cloudflared service install     # يثبّته كخدمة systemd
+```
+
+> ⚠️ ملف الاعتماد `~/.cloudflared/*.json` و`cert.pem` **أسرار** — لا ترفعها إلى Git
+> (المشروع يستثنيها في `.gitignore`).
+
+### ب) عبر Render (نطاق ثابت + استضافة سحابية)
+
+1. انشر الخدمة أولاً (راجع قسم Render أعلاه) واحصل على رابط `*.onrender.com`.
+2. في لوحة Render: **Settings → Custom Domains → Add Custom Domain**.
+3. أدخل نطاقك، مثلاً `chat.example.com`.
+4. Render يعرض لك سجل DNS المطلوب:
+   - **CNAME**: `chat.example.com` → `secure-chat-xxxx.onrender.com`
+   - أو **A records** إن كان النطاق جذرياً (`example.com`).
+5. أضف السجل عند مزوّد النطاق، وانتظر التحقق (شهادة TLS تلقائية عبر Let's Encrypt).
+
+> 💡 خطة Render المجانية (Hobby) تشمل عدداً محدوداً من النطاقات المخصّصة —
+> تحقق من [توثيق Render](https://render.com/docs/custom-domains) لآخر الأرقام.
+> ملاحظة: خطة Render المجانية **تنام بعد ~15 دقيقة خمول**.
+
+### ج) الرابط المؤقت بلا نطاق
+
+إن لم تملك نطاقاً، `bash deploy_cloudflare.sh` يمنحك رابطاً فورياً
+`https://xxxx.trycloudflare.com` (يتغيّر كل تشغيل). مناسب للعرض السريع فقط.
+
+---
+
 ## ⚠️ ملاحظات أمنية (مهمة)
 
 1. **الكود اليدوي تعليمي فقط** — RC4 مهجور، والأوضاع المكتوبة يدوياً قد تكون
