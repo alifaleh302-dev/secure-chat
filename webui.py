@@ -46,8 +46,9 @@ def _valid_session(token: str | None) -> bool:
 
 
 def _check_credentials(user: str, pw: str) -> bool:
-    return (hmac.compare_digest(user, config.ADMIN_USER)
-            and hmac.compare_digest(pw, config.ADMIN_PASSWORD))
+    # نُنظّف الطرفين: الخطأ الشائع هو مسافة زائدة عند اللصق من لوحة النشر.
+    return (hmac.compare_digest(user.strip(), config.ADMIN_USER)
+            and hmac.compare_digest(pw.strip(), config.ADMIN_PASSWORD))
 
 
 def _session_cookie(token: str, max_age: int) -> str:

@@ -135,8 +135,12 @@ def main() -> None:
 
     print(config.describe())
     if config.ADMIN_PASSWORD_GENERATED:
-        print(f"[*] كلمة مرور لوحة التحكم (مؤقتة لهذه الجلسة): {config.ADMIN_PASSWORD}")
-        print("    اضبط ADMIN_PASSWORD لتثبيتها بين التشغيلات.")
+        print("[!] لم يُضبط ADMIN_PASSWORD → وُلّدت كلمة مرور عشوائية لهذه الجلسة.")
+        print(f"[*] كلمة مرور لوحة التحكم (مؤقتة): {config.ADMIN_PASSWORD}")
+        print("    اضبط ADMIN_PASSWORD في متغيرات البيئة لتثبيتها.")
+    else:
+        print(f"[*] كلمة مرور اللوحة: مقروءة من متغير البيئة ADMIN_PASSWORD "
+              f"(المستخدم: {config.ADMIN_USER}، الطول: {len(config.ADMIN_PASSWORD)} حرفاً)")
 
     hub = ChatHub()
     try:

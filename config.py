@@ -19,8 +19,30 @@ def _flag(name: str, default: bool) -> bool:
     return val.strip().lower() not in ("0", "false", "no", "off", "")
 
 
+def _env_ci(name: str) -> str | None:
+    """قراءة متغير بيئة بلا حساسية لحالة الأحرف.
+
+    منصّات النشر (Railway/Render) تضبط الأسماء كما تكتبها أنت، وبايثون
+    حسّاس لحالة الأحرف: `admin_password` لا يُقرأ بـ `ADMIN_PASSWORD`.
+    نتسامح هنا لتفادي توليد كلمة مرور عشوائية بصمت.
+    """
+    if name in os.environ:
+        return os.environ[name]
+    for key, value in os.environ.items():
+        if key.upper() == name.upper():
+            return value
+    return None
+
+
 def _text(name: str, default: str) -> str:
-    return os.environ.get(name, default)
+    val = _env_ci(name)
+    return default if val is None else val
+
+
+def _text_clean(name: str, default: str = "") -> str:
+    """نص مع إزالة المسافات البادئة/اللاحقة — للمفاتيح وكلمات المرور."""
+    val = _env_ci(name)
+    return default if val is None else val.strip()
 
 
 # ============================================================
@@ -71,10 +93,13 @@ KEY_EXCHANGE = _text("KEY_EXCHANGE", "ECDH")
 # إن لم تضبط ADMIN_PASSWORD، يُولَّد سرّ عشوائي عند كل تشغيل ويُطبع في سجل
 # السيرفر. اضبطه في الإنتاج ليكون ثابتاً:
 #     ADMIN_PASSWORD='كلمة-قوية' python server.py
-ADMIN_USER = _text("ADMIN_USER", "admin")
-_ADMIN_PW_FROM_ENV = os.environ.get("ADMIN_PASSWORD", "").strip()
+ADMIN_USER = _text_clean("ADMIN_USER", "admin") or "admin"
+_ADMIN_PW_FROM_ENV = _text_clean("ADMIN_PASSWORD")
 ADMIN_PASSWORD_GENERATED = not _ADMIN_PW_FROM_ENV
 ADMIN_PASSWORD = _ADMIN_PW_FROM_ENV or secrets.token_urlsafe(12)
+
+# تشخيص مفيد عند النشر: يظهر في السجل لتعرف أي كلمة فُعّلت فعلاً.
+ADMIN_PASSWORD_SOURCE = "ENV" if _ADMIN_PW_FROM_ENV else "GENERATED"
 
 # سرّ توقيع جلسة لوحة التحكم. يُولَّد عند كل تشغيل — أي أن إعادة تشغيل
 # السيرفر تُبطل كل الجلسات (وهذا مقبول تعليمياً؛ في الإنتاج ثبّته).
