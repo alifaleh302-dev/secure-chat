@@ -326,6 +326,9 @@ bash deploy_cloudflare.sh
 
 ## 🌐 تخصيص الدومين (نطاقك الخاص)
 
+> 📖 **دليل مفصّل خطوة بخطوة (كل الحقول وما تكتبه فيها):**
+> [`docs/DEPLOY_CLOUDFLARE_AR.md`](docs/DEPLOY_CLOUDFLARE_AR.md)
+
 عندك مساران، حسب أين يعمل السيرفر:
 
 ### أ) عبر Cloudflare Tunnel مُسمّى (نطاق ثابت، مجاني، بلا بطاقة)
@@ -333,8 +336,13 @@ bash deploy_cloudflare.sh
 هذا **الأنسب لمشروعك** لأن السيرفر يبقى يعمل على جهازك (socket خام)،
 وCloudflare تمنحه نطاقك الخاص + HTTPS + دعم WebSocket.
 
-**المتطلبات:** حساب Cloudflare مجاني + نطاق مُضاف إلى Cloudflare
-(أي تغيّر nameservers النطاق إلى Cloudflare — مجاني).
+**المتطلبات:** حساب Cloudflare مجاني + **نطاق تملكه** مُضاف إلى Cloudflare
+بتغيير الـ nameservers إلى nameservers كلاودفلير (Full setup — مجاني).
+
+> ⚠️ **مهم:** Cloudflare Tunnel لا يقبل ربط نطاق من مزوّد DNS آخر مباشرة على
+> الخطة المجانية. يجب أن يكون النطاق مُداراً داخل حسابك في Cloudflare
+> (أي تغيير الـ nameservers عند المسجّل — الخطوة مجانية، والنطاق نفسه مدفوع عادةً).
+> لا يمكن استخدام نطاق فرعي مجاني مثل `duckdns.org` لأنه لا يسمح بتغيير الـ nameservers.
 
 ```bash
 # كل شيء بأمر واحد (ينشئ النفق ويربط النطاق ويشغّله):
