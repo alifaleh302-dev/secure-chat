@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مكتبة Socket من الداخل + كود المشروع بالتفصيل</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b22; --line:#30363d; --fg:#e6edf3; --mut:#8b949e;
+    --acc:#2f81f7; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --code:#0b0f14;
+    --syn:#a371f7;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--fg);
+    font-family:system-ui,"Segoe UI",Tahoma,Helvetica,Arial,sans-serif;
+    line-height:1.95; font-size:16px;}
+  .wrap{max-width:980px; margin:0 auto; padding:32px 20px 80px;}
+  header.hero{border:1px solid var(--line); background:linear-gradient(180deg,#161b22,#0d1117);
+    border-radius:18px; padding:30px 28px; margin-bottom:28px;}
+  header.hero h1{margin:0 0 10px; font-size:26px; line-height:1.5;}
+  header.hero p{margin:0; color:var(--mut); font-size:15px;}
+  .badges{margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;}
+  .badge{font-size:12px; border:1px solid var(--line); background:#0d1117; color:var(--mut);
+         padding:4px 10px; border-radius:999px;}
+  nav.toc{border:1px solid var(--line); background:var(--card); border-radius:14px;
+          padding:18px 22px; margin-bottom:32px;}
+  nav.toc h2{margin:0 0 10px; font-size:16px;}
+  nav.toc ol{margin:0; padding-inline-start:22px;}
+  nav.toc a{color:var(--acc); text-decoration:none; font-size:14.5px;}
+  nav.toc a:hover{text-decoration:underline;}
+  h2.sec{font-size:22px; margin:52px 0 8px; padding-bottom:12px;
+         border-bottom:2px solid var(--line); scroll-margin-top:20px;}
+  h2.sec .num{display:inline-flex; align-items:center; justify-content:center;
+    width:34px; height:34px; border-radius:10px; background:var(--acc); color:#fff;
+    font-size:17px; margin-inline-end:10px; vertical-align:middle;}
+  h3{font-size:18px; margin:30px 0 10px; color:#fff;}
+  h4{font-size:15.5px; margin:22px 0 8px; color:var(--acc);}
+  p{margin:12px 0;}
+  ul,ol{margin:12px 0; padding-inline-start:26px;}
+  li{margin:7px 0;}
+  code{font-family:"JetBrains Mono",Consolas,Monaco,monospace;
+    background:#1c2128; border:1px solid var(--line); border-radius:6px;
+    padding:1px 6px; font-size:13.5px; direction:ltr; unicode-bidi:embed; display:inline-block;}
+  .ref{font-size:13px; color:var(--mut);}
+  pre{background:var(--code); border:1px solid var(--line); border-radius:12px;
+      padding:16px 18px; overflow-x:auto; direction:ltr; text-align:left;
+      margin:14px 0; position:relative;}
+  pre code{background:none; border:0; padding:0; font-size:13.5px; line-height:1.7; display:block; color:#e6edf3;}
+  .cmt{color:#8b949e;}
+  .kw{color:#ff7b72;}
+  .fn{color:#d2a8ff;}
+  .str{color:#a5d6ff;}
+  .num{color:#79c0ff;}
+  .box{border-radius:12px; padding:14px 18px; margin:16px 0; border:1px solid var(--line); background:var(--card);}
+  .box h4{margin:0 0 8px; font-size:15px;}
+  .key{border-color:#1f6feb; background:#0d1b2e;}
+  .key h4{color:#79c0ff;}
+  .warn{border-color:#9e6a03; background:#2b2308;}
+  .warn h4{color:#e3b341;}
+  .danger{border-color:#8b2c2c; background:#2d1114;}
+  .danger h4{color:#ff7b72;}
+  .syn{border-color:#8957e5; background:#1c1526;}
+  .syn h4{color:var(--syn);}
+  .syn .lbl{color:var(--syn); font-weight:700;}
+  .syn code{background:#241a33; border-color:#4b3673;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:13.5px;}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:start; vertical-align:top;}
+  th{background:#1c2128; color:#fff; font-weight:600;}
+  tr:nth-child(even) td{background:#12161c;}
+  .ascii{background:var(--code); border:1px solid var(--line); border-radius:12px;
+    padding:16px; overflow-x:auto; direction:ltr; text-align:left;
+    font-family:Consolas,Monaco,monospace; font-size:12.5px; line-height:1.55; color:#79c0ff;
+    white-space:pre;}
+  .footer{margin-top:60px; border-top:1px solid var(--line); padding-top:20px; color:var(--mut); font-size:13px;}
+  a{color:var(--acc);}
+  .tick{color:var(--ok); font-weight:700;}
+  .cross{color:var(--bad); font-weight:700;}
+  .part{background:#1f6feb; color:#fff; display:inline-block; font-size:12px; padding:3px 12px;
+        border-radius:999px; margin-bottom:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🔌 مكتبة <code>socket</code> من الداخل + كود المشروع</h1>
+  <p>جزءان: <b>(أ)</b> شرح مكتبة <code>socket</code> دالةً دالةً — صيغتها العامة، برامتراتها، وقيمها المُرجَعة.
+     <b>(ب)</b> شرح كل سطر سوكيت في مشروعنا، ملفًا ملفًا. كل سِنْتاكس غريب في صندوق بنفسجي.</p>
+  <div class="badges">
+    <span class="badge">📚 توثيق المكتبة</span>
+    <span class="badge">🔬 شرح الكود</span>
+    <span class="badge">🧠 من الداخل</span>
+    <span class="badge">🔗 مراجع رسمية</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>📑 المحتويات</h2>
+  <p style="margin:6px 0 4px; color:var(--mut); font-size:13.5px;">الجزء (أ) — المكتبة من الداخل:</p>
+  <ol>
+    <li><a href="#a1">ما هو السوكيت فعلًا؟ (من الداخل)</a></li>
+    <li><a href="#a2">العائلات والأنواع والبروتوكول</a></li>
+    <li><a href="#a3">دورة حياة السيرفر: socket → bind → listen → accept</a></li>
+    <li><a href="#a4">دورة حياة العميل: socket → connect</a></li>
+    <li><a href="#a5">الإرسال: send و sendall</a></li>
+    <li><a href="#a6">الاستقبال: recv و recv_into و recvfrom</a></li>
+    <li><a href="#a7">الإغلاق والتحكّم: close, shutdown, settimeout</a></li>
+    <li><a href="#a8">خيارات السوكيت: setsockopt و getsockopt</a></li>
+    <li><a href="#a9">جدول مرجعي شامل لكل الدوال والثوابت</a></li>
+  </ol>
+  <p style="margin:14px 0 4px; color:var(--mut); font-size:13.5px;">الجزء (ب) — كود المشروع:</p>
+  <ol start="10">
+    <li><a href="#b1">السيرفر: فتح السوكيت والاستماع (server.py)</a></li>
+    <li><a href="#b2">تمييز العميل بـ MSG_PEEK + Threads</a></li>
+    <li><a href="#b3">قراءة طلب HTTP قطعةً قطعة</a></li>
+    <li><a href="#b4">طبقة النقل: recv_exact و send_frame (transports.py)</a></li>
+    <li><a href="#b5">recv_exact داخل WebSocket (websocket.py)</a></li>
+    <li><a href="#b6">العميل: create_connection (client.py)</a></li>
+    <li><a href="#b7">الإغلاق الآمن للمقبس</a></li>
+    <li><a href="#b8">🧪 تجارب عملية</a></li>
+    <li><a href="#b9">📚 المراجع</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<span class="part">الجزء أ — المكتبة من الداخل</span>
+<h2 class="sec" id="a1"><span class="num">١</span> ما هو السوكيت فعلًا؟ (من الداخل)</h2>
+
+<p>كلمة <b>socket</b> تعني «مقبس/منفذ». تشبيهه الدقيق: <b>مقبس الكهرباء</b> في الحائط —
+عندما تُوصِل قابسًا فيه، يصبح لديك مسار ثابت يمرّ فيه التيّار. وبالمثل، السوكيت هو
+«نقطة نهاية» تُوصَل بها مسار بيانات بين برنامجين.</p>
+
+<h3>ماذا يحدث في نظام التشغيل؟</h3>
+<p>السوكيت ليس شيئًا سحريًا في بايثون — إنه <b>واصف ملف (file descriptor)</b> يدير <b>نواة نظام التشغيل (kernel)</b>.
+عندما تستدعي <code>socket.socket()</code>، النواة تُنشئ بنية داخلية فيها:</p>
+<ul>
+  <li><b>مخزن إرسال (send buffer):</b> بياناتك تُكتب هنا أولًا ثم تُرسل على الشبكة.</li>
+  <li><b>مخزن استقبال (receive buffer):</b> البيانات الواردة تُخزَّن هنا حتى تقرأها بـ <code>recv</code>.</li>
+  <li><b>عنوان محلي + عنوان بعيد:</b> (IP المحلي, المنفذ) و(IP الطرف الآخر, منفذه).</li>
+  <li><b>حالة الاتصال:</b> مغلق، يستمع، متصل، إلخ.</li>
+</ul>
+
+<div class="box key">
+  <h4>💡 نتيجة عملية مهمّة جدًا</h4>
+  لأن هناك <b>مخزن استقبال</b>، فإن <code>recv(1024)</code> لا تعني «انتظر حتى تصل 1024 بايت».
+  تعني: «أعطني <b>ما هو متاح الآن</b>، حتى 1024 بايت». قد يكون أقل بكثير — أو أكثر من رسالة واحدة.
+  <b>هذا هو أصل كل مشاكل التأطير</b>.
+</div>
+
+<h3>الفرق بين TCP و UDP</h3>
+<table>
+  <tr><th></th><th>TCP (<code>SOCK_STREAM</code>)</th><th>UDP (<code>SOCK_DGRAM</code>)</th></tr>
+  <tr><td>نوع النقل</td><td>تيّار بايتات</td><td>رسائل منفصلة (datagrams)</td></tr>
+  <tr><td>الترتيب</td><td>مضمون</td><td>غير مضمون</td></tr>
+  <tr><td>فقدان البيانات</td><td>يُعاد الإرسال</td><td>يُفقد بصمت</td></tr>
+  <tr><td>حدود الرسائل</td><td class="cross">لا يوجد — نصنعها بأنفسنا</td><td class="tick">محفوظة تلقائيًا</td></tr>
+  <tr><td>الاستخدام</td><td>دردشة، HTTP، ملفات</td><td>بثّ، ألعاب، DNS</td></tr>
+</table>
+<p>مشروعنا يستخدم TCP لأنه يحتاج كل البايتات مرتّبة وكاملة.</p>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="a2"><span class="num">٢</span> العائلات والأنواع والبروتوكول</h2>
+
+<h3>الصيغة العامة لإنشاء سوكيت</h3>
+<pre><code>socket.socket(family=AF_INET, type=SOCK_STREAM, proto=<span class="num">0</span>, fileno=<span class="kw">None</span>)</code></pre>
+
+<table>
+  <tr><th>البرامتر</th><th>المعنى</th><th>القيم الشائعة</th></tr>
+  <tr><td><code>family</code></td><td>عائلة العنوان (نوع عناوين الشبكة)</td>
+      <td><code>AF_INET</code> (IPv4)، <code>AF_INET6</code> (IPv6)، <code>AF_UNIX</code> (محلي)</td></tr>
+  <tr><td><code>type</code></td><td>نوع الاتصال</td>
+      <td><code>SOCK_STREAM</code> (TCP)، <code>SOCK_DGRAM</code> (UDP)، <code>SOCK_RAW</code> (خام)</td></tr>
+  <tr><td><code>proto</code></td><td>البروتوكول الرقمي — يُترك 0 عادةً</td>
+      <td><code>0</code> (افتراضي)، <code>IPPROTO_TCP</code>، <code>IPPROTO_UDP</code></td></tr>
+  <tr><td><code>fileno</code></td><td>لو لديك واصف ملف جاهز وتريد لفّه بسوكيت</td>
+      <td><code>None</code> (افتراضي)</td></tr>
+</table>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — لماذا <code>AF_</code> و<code>SOCK_</code> بأحرف كبيرة؟</h4>
+  هذه <b>ثوابت</b> (constants) معرّفة في وحدة <code>socket</code> — أرقام صحيحة لها أسماء مقروءة.
+  مثلًا <code>AF_INET</code> قيمته 2 على لينكس. كتابتها بأحرف كبيرة اصطلاح لتمييز الثوابت عن المتغيّرات.
+</div>
+
+<div class="ascii">استخدامنا في المشروع:
+
+  socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                   └─ IPv4           └─ TCP
+  = سوكيت TCP/IPv4
+
+  socket.AF_INET  = 2   (عائلة IPv4)
+  socket.SOCK_STREAM = 1 (تيّار TCP)</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="a3"><span class="num">٣</span> دورة حياة السيرفر: socket → bind → listen → accept</h2>
+
+<div class="ascii">   [socket()]  أنشئ المقبس
+        │
+        ▼
+   [bind()]    اربطه بعنوان (IP + منفذ)
+        │
+        ▼
+   [listen()]  ابدأ الاستماع (افتح الطابور)
+        │
+        ▼
+   [accept()]  اقبل اتصالًا (يتجمّد حتى يصل) ──► يعيد مقبسًا جديدًا للعميل
+        │
+        ▼
+   [recv/send] تبادل البيانات
+        │
+        ▼
+   [close()]   أغلق</div>
+
+<h3>3.1 — <code>bind(address)</code></h3>
+<p><b>الصيغة:</b> <code>s.bind((host, port))</code></p>
+<p><b>ماذا تفعل:</b> تربط المقبس بعنوان محلي. <code>host</code> عنوان IP المحلي (مثل <code>"0.0.0.0"</code>
+لكل الواجهات أو <code>"127.0.0.1"</code> للجهاز فقط)، و<code>port</code> رقم المنفذ (0..65535).</p>
+<div class="box warn">
+  <h4>⚠️ خطأان شائعان</h4>
+  <ul>
+    <li><b>Address already in use:</b> المنفذ مشغول (لذلك نستخدم <code>SO_REUSEADDR</code>).</li>
+    <li><b>Permission denied:</b> المنافذ أقل من 1024 تتطلّب صلاحيات المدير (root).</li>
+  </ul>
+</div>
+
+<h3>3.2 — <code>listen([backlog])</code></h3>
+<p><b>الصيغة:</b> <code>s.listen(backlog)</code></p>
+<p><b>ماذا تفعل:</b> تحوّل المقبس إلى «مقبس استماع». الـ <code>backlog</code> هو <b>حجم طابور الانتظار</b>.</p>
+<div class="box syn">
+  <h4>🔎 تصحيح مفهوم شائع</h4>
+  <code>listen(32)</code> <b>لا</b> تعني «32 عميلًا كحد أقصى». العملاء غير المحدودين يمكنهم الاتصال تباعًا.
+  الرقم يعني فقط: لو وصل 33 اتصالًا في نفس اللحظة قبل أن يستقبلها برنامجك، قد يرفض النظام الزائد.
+</div>
+
+<h3>3.3 — <code>accept()</code></h3>
+<p><b>الصيغة:</b> <code>conn, address = s.accept()</code></p>
+<p><b>ماذا تفعل:</b> <b>تتجمّد (block)</b> حتى يصل اتصال، ثم تُعيد <b>مقبسًا جديدًا</b> <code>conn</code>
+مخصّصًا لهذا العميل، مع <code>address</code> (عنوان العميل).</p>
+<div class="box key">
+  <h4>💡 المفهوم الأهم: مقبسان مختلفان!</h4>
+  <div class="ascii">srv  = مقبس الاستماع (يبقى للاستماع للاتصالات الجديدة)
+conn = مقبس العميل    (لتبادل بيانات هذا العميل تحديدًا)</div>
+  لهذا في سيرفرات حقيقية: <code>srv</code> يبقى في الحلقة، وكل <code>conn</code> يُسلَّم لخيط (thread) منفصل.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="a4"><span class="num">٤</span> دورة حياة العميل: socket → connect</h2>
+
+<h3><code>connect(address)</code></h3>
+<p><b>الصيغة:</b> <code>s.connect((host, port))</code></p>
+<p><b>ماذا تفعل:</b> تبدأ <b>المصافحة الثلاثية</b> (SYN → SYN-ACK → ACK) وتنتظر حتى يتم الاتصال.
+لو فشل الاتصال تُرفع <code>ConnectionRefusedError</code>.</p>
+
+<h3>البديل الأسهل: <code>socket.create_connection()</code></h3>
+<p><b>الصيغة:</b> <code>socket.create_connection((host, port), timeout=..., source_address=None)</code></p>
+<p>دالة مساعدة تجمع: إنشاء السوكيت + الاتصال + (اختياريًا) مهلة. تُجرّب كل عناوين المضيف تلقائيًا
+(IPv4 و IPv6) وتُعيد أول اتصال ناجح. <b>مشروعنا يستخدمها في العميل.</b></p>
+<div class="box syn">
+  <h4>🔎 لماذا هي أفضل من socket()+connect()؟</h4>
+  لأنها تتعامل مع حالة أن المضيف له عدة عناوين IP. لو فشل عنوان، تُجرّب التالي تلقائيًا —
+  بدل أن تفشل بسرعة بـ <code>connect()</code> اليدوي.
+</div>
+
+<h3>مقارنة سريعة</h3>
+<table>
+  <tr><th></th><th>السيرفر</th><th>العميل</th></tr>
+  <tr><td>الإنشاء</td><td><code>socket()</code></td><td><code>socket()</code> أو <code>create_connection()</code></td></tr>
+  <tr><td>الربط</td><td><code>bind()</code> (عنوان معروف)</td><td>تلقائي (النظام يختار منفذًا مؤقتًا)</td></tr>
+  <tr><td>الاتصال</td><td><code>listen()</code> ثم <code>accept()</code></td><td><code>connect()</code></td></tr>
+  <tr><td>الترتيب</td><td>استمع أولًا ثم اقبل</td><td>اتصل بالسيرفر الجاهز</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="a5"><span class="num">٥</span> الإرسال: send و sendall</h2>
+
+<h3><code>send(bytes)</code></h3>
+<p><b>الصيغة:</b> <code>n = s.send(data)</code></p>
+<p><b>ماذا تفعل:</b> ترسل <code>data</code> وتُعيد <b>عدد البايتات التي أُرسلت فعلًا</b>.
+<b>لا تضمن</b> إرسال كل شيء! قد تُرسل جزءًا فقط إذا امتلأ مخزن الإرسال.</p>
+
+<h3><code>sendall(bytes)</code></h3>
+<p><b>الصيغة:</b> <code>s.sendall(data)</code> (لا تُعيد شيئًا)</p>
+<p><b>ماذا تفعل:</b> تُكرّر الإرسال داخليًا حتى تُرسل <b>كل</b> البيانات أو يحدث خطأ.
+<b>هذه هي التي نستخدمها في المشروع.</b></p>
+
+<div class="ascii">الفرق عمليًا:
+
+  send(data):     [▓▓▓░░░░░░]   ← أرسل جزءًا (مثلًا 3 من 8) وأعاد 3
+  sendall(data):  [▓▓▓▓▓▓▓▓]    ← تكفّل بإرسال الكل أو رفع خطأ</div>
+
+<div class="box danger">
+  <h4>🚨 قاعدة ذهبية</h4>
+  إن كنت لا تريد كتابة حلقة إرسال يدوية، فاستخدم <code>sendall</code> دائمًا.
+  <code>send</code> وحدها مصدر أخطاء صامتة خطيرة.
+</div>
+
+<h3>ماذا يُرسل؟ بايتات فقط</h3>
+<p>البرامتر <b>يجب</b> أن يكون <code>bytes</code> أو <code>bytearray</code>، لا نصًا (<code>str</code>).
+لذلك ترى في المشروع <code>response.encode()</code> قبل الإرسال.</p>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="a6"><span class="num">٦</span> الاستقبال: recv و recv_into و recvfrom</h2>
+
+<h3><code>recv(bufsize[, flags])</code></h3>
+<p><b>الصيغة:</b> <code>data = s.recv(1024)</code></p>
+<p><b>ماذا تفعل:</b> تقرأ <b>حتى</b> <code>bufsize</code> بايت من مخزن الاستقبال. تُعيد:</p>
+<ul>
+  <li>بايتات إن وصلت.</li>
+  <li><code>b""</code> (فارغ) إذا <b>أغلق</b> الطرف الآخر الاتصال بشكل سليم. <b>هذا هو إشارة النهاية!</b></li>
+  <li>ترفع استثناء عند خطأ.</li>
+</ul>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — <code>flags</code> (الأعلام)</h4>
+  برامتر اختياري يغيّر سلوك القراءة. أشهرها:
+  <table>
+    <tr><th>العلم</th><th>المعنى</th></tr>
+    <tr><td><code>MSG_PEEK</code></td><td>اقرأ البيانات <b>دون حذفها</b> من المخزن (للتطلّع).</td></tr>
+    <tr><td><code>MSG_WAITALL</code></td><td>انتظر حتى تكتمل <code>bufsize</code> بايت (لا تُعيد أقل إلا عند الإغلاق).</td></tr>
+    <tr><td><code>MSG_DONTWAIT</code></td><td>لا تتجمّد: إن لم يوجد بيانات، ارفع خطأ فورًا.</td></tr>
+  </table>
+  مشروعنا يستخدم <code>MSG_PEEK</code> لمعرفة نوع العميل دون استهلاك البيانات.
+</div>
+
+<h3><code>recv_into(buffer[, nbytes[, flags]])</code></h3>
+<p><b>الصيغة:</b> <code>n = s.recv_into(bytearray, nbytes)</code></p>
+<p>مثل <code>recv</code> لكن تكتب داخل <b>مصفوفة جاهزة</b> وتُعيد <b>العدد</b> فقط (لا تنشئ bytes جديدة).
+أسرع وأقل استهلاكًا للذاكرة في التطبيقات العالية الأداء.</p>
+
+<h3><code>recvfrom(bufsize[, flags])</code></h3>
+<p><b>الصيغة:</b> <code>data, addr = s.recvfrom(1024)</code></p>
+<p>تُستخدم مع <b>UDP</b> (لأنه لا يوجد اتصال). تُعيد البيانات مع عنوان المُرسل.</p>
+
+<div class="box key">
+  <h4>💡 لماذا لا نستخدم <code>MSG_WAITALL</code> في المشروع؟</h4>
+  لأن بروتوكولنا يحتاج قراءة الطول <b>أولًا</b> ثم قراءة الحمولة بعده. لو انتظرنا كل شيء مسبقًا لما عرفنا كم نطلب.
+  لذلك نكتب <code>_recv_exact</code> يدويًا.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="a7"><span class="num">٧</span> الإغلاق والتحكّم: close, shutdown, settimeout</h2>
+
+<h3><code>close()</code></h3>
+<p><b>الصيغة:</b> <code>s.close()</code></p>
+<p>يُغلق المقبس ويحرّر الواصف. بعد الإغلاق لا يمكن استخدامه.</p>
+
+<h3><code>shutdown(how)</code> — فرق مهم عن close</h3>
+<p><b>الصيغة:</b> <code>s.shutdown(socket.SHUT_WR)</code></p>
+<table>
+  <tr><th>القيمة</th><th>المعنى</th></tr>
+  <tr><td><code>SHUT_RD</code></td><td>أوقف القراءة فقط</td></tr>
+  <tr><td><code>SHUT_WR</code></td><td>أوقف الكتابة فقط (تُرسل إشارة EOF للطرف الآخر)</td></tr>
+  <tr><td><code>SHUT_RDWR</code></td><td>أوقف الاثنين</td></tr>
+</table>
+<div class="box syn">
+  <h4>🔎 الفرق بين close و shutdown</h4>
+  <code>shutdown</code> يُخبر الطرف الآخر «انتهيت من الإرسال» لكن يبقى قادرًا على الاستقبال.
+  <code>close</code> يُحرّر المقبس كاملًا.
+</div>
+
+<h3><code>settimeout(value)</code></h3>
+<p><b>الصيغة:</b> <code>s.settimeout(5.0)</code> — بعد 5 ثوانٍ بلا نشاط تُرفع <code>socket.timeout</code>.</p>
+<p>مفيد لمنع «التجمّد الأبدي». <code>None</code> = بلا مهلة (الافتراضي)، <code>0</code> = غير مُجمِّد.</p>
+
+<h3><code>setblocking(flag)</code></h3>
+<p><b>الصيغة:</b> <code>s.setblocking(False)</code> — الوضع غير المُجمِّد: كل عملية تُرجع فورًا،
+وإن لم تجد بيانات ترفع <code>BlockingIOError</code>.</p>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="a8"><span class="num">٨</span> خيارات السوكيت: setsockopt و getsockopt</h2>
+
+<h3><code>setsockopt(level, optname, value)</code></h3>
+<p><b>الصيغة:</b> <code>s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)</code></p>
+<table>
+  <tr><th>البرامتر</th><th>المعنى</th></tr>
+  <tr><td><code>level</code></td><td>مستوى الخيار: <code>SOL_SOCKET</code> (عام)، <code>IPPROTO_TCP</code> (TCP خاص)</td></tr>
+  <tr><td><code>optname</code></td><td>اسم الخيار (ثابت)</td></tr>
+  <tr><td><code>value</code></td><td>القيمة — غالبًا <code>1</code> للتشغيل و<code>0</code> للإطفاء</td></tr>
+</table>
+
+<h4>أشهر الخيارات</h4>
+<table>
+  <tr><th>الخيار</th><th>الفائدة</th></tr>
+  <tr><td><code>SO_REUSEADDR</code></td><td>يسمح بإعادة استخدام العنوان فورًا بعد الإغلاق.</td></tr>
+  <tr><td><code>SO_REUSEPORT</code></td><td>يسمح لعدة عمليات بالاستماع على نفس المنفذ.</td></tr>
+  <tr><td><code>SO_KEEPALIVE</code></td><td>يرسل نبضات دورية لاكتشاف انقطاع الاتصال الميّت.</td></tr>
+  <tr><td><code>TCP_NODELAY</code></td><td>يُطفئ خوارزمية Nagle → إرسال فوري بلا تأجيل (مهم للدردشة).</td></tr>
+  <tr><td><code>SO_LINGER</code></td><td>يتحكّم في سلوك الإغلاق عند وجود بيانات لم تُرسل بعد.</td></tr>
+</table>
+
+<div class="box syn">
+  <h4>🔎 لماذا <code>SO_REUSEADDR</code> مهم في تطويرنا؟</h4>
+  بعد إغلاق سيرفر، يبقى المنفذ في حالة <b>TIME_WAIT</b> لدقيقة أو دقيقتين. بدون هذا الخيار،
+  ستظهر «Address already in use» عند إعادة التشغيل فورًا. معه، نعيد التشغيل بلا انتظار.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="a9"><span class="num">٩</span> جدول مرجعي شامل</h2>
+
+<h3>دوال إنشاء وربط</h3>
+<table>
+  <tr><th>الدالة</th><th>الصيغة العامة</th><th>تُعيد</th></tr>
+  <tr><td><code>socket.socket</code></td><td><code>(family=AF_INET, type=SOCK_STREAM, proto=0, fileno=None)</code></td><td>كائن socket</td></tr>
+  <tr><td><code>socket.create_connection</code></td><td><code>((host,port), timeout=..., source_address=None)</code></td><td>كائن socket متّصل</td></tr>
+  <tr><td><code>socket.getaddrinfo</code></td><td><code>(host, port, family=0, type=0, ...)</code></td><td>قائمة عناوين محتملة</td></tr>
+  <tr><td><code>s.bind</code></td><td><code>((host, port))</code></td><td>None</td></tr>
+  <tr><td><code>s.listen</code></td><td><code>([backlog])</code></td><td>None</td></tr>
+</table>
+
+<h3>دوال الاتصال والاستقبال</h3>
+<table>
+  <tr><th>الدالة</th><th>الصيغة العامة</th><th>تُعيد</th></tr>
+  <tr><td><code>s.accept</code></td><td><code>()</code></td><td><code>(conn, address)</code></td></tr>
+  <tr><td><code>s.connect</code></td><td><code>((host, port))</code></td><td>None (أو استثناء)</td></tr>
+  <tr><td><code>s.connect_ex</code></td><td><code>((host, port))</code></td><td>0 نجاح / رمز خطأ</td></tr>
+  <tr><td><code>s.recv</code></td><td><code>(bufsize[, flags])</code></td><td>bytes (فارغة عند الإغلاق)</td></tr>
+  <tr><td><code>s.recv_into</code></td><td><code>(buffer[, nbytes[, flags]])</code></td><td>عدد البايتات المقروءة</td></tr>
+  <tr><td><code>s.recvfrom</code></td><td><code>(bufsize[, flags])</code></td><td><code>(bytes, address)</code> — UDP</td></tr>
+</table>
+
+<h3>دوال الإرسال والإغلاق والتحكّم</h3>
+<table>
+  <tr><th>الدالة</th><th>الصيغة العامة</th><th>تُعيد</th></tr>
+  <tr><td><code>s.send</code></td><td><code>(bytes[, flags])</code></td><td>عدد البايتات المُرسلة (قد يكون جزئيًا!)</td></tr>
+  <tr><td><code>s.sendall</code></td><td><code>(bytes[, flags])</code></td><td>None (يرسل الكل أو يرفع خطأ)</td></tr>
+  <tr><td><code>s.sendto</code></td><td><code>(bytes, address)</code></td><td>عدد البايتات — UDP</td></tr>
+  <tr><td><code>s.close</code></td><td><code>()</code></td><td>None</td></tr>
+  <tr><td><code>s.shutdown</code></td><td><code>(how)</code></td><td>None</td></tr>
+  <tr><td><code>s.settimeout</code></td><td><code>(value)</code></td><td>None</td></tr>
+  <tr><td><code>s.setblocking</code></td><td><code>(flag)</code></td><td>None</td></tr>
+  <tr><td><code>s.setsockopt</code></td><td><code>(level, optname, value)</code></td><td>None</td></tr>
+  <tr><td><code>s.getsockopt</code></td><td><code>(level, optname[, buflen])</code></td><td>القيمة الحالية للخيار</td></tr>
+  <tr><td><code>s.makefile</code></td><td><code>(mode='r', buffering=None, ...)</code></td><td>كائن ملف (لـ readline)</td></tr>
+</table>
+
+<h3>الثوابت المهمّة</h3>
+<table>
+  <tr><th>الثابت</th><th>المعنى</th></tr>
+  <tr><td><code>AF_INET</code> / <code>AF_INET6</code> / <code>AF_UNIX</code></td><td>عائلات العناوين (IPv4 / IPv6 / محلي)</td></tr>
+  <tr><td><code>SOCK_STREAM</code> / <code>SOCK_DGRAM</code> / <code>SOCK_RAW</code></td><td>أنواع السوكيت (TCP / UDP / خام)</td></tr>
+  <tr><td><code>SOL_SOCKET</code></td><td>مستوى خيارات السوكيت العام</td></tr>
+  <tr><td><code>SO_REUSEADDR</code> / <code>SO_KEEPALIVE</code></td><td>خيارات عامة</td></tr>
+  <tr><td><code>MSG_PEEK</code> / <code>MSG_WAITALL</code> / <code>MSG_DONTWAIT</code></td><td>أعلام القراءة</td></tr>
+  <tr><td><code>SHUT_RD</code> / <code>SHUT_WR</code> / <code>SHUT_RDWR</code></td><td>أوضاع shutdown</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<span class="part">الجزء ب — كود المشروع</span>
+<h2 class="sec" id="b1"><span class="num">١٠</span> السيرفر: فتح السوكيت والاستماع (server.py)</h2>
+
+<pre><code><span class="kw">def</span> <span class="fn">run_chat_server</span>(hub, stop_event=<span class="kw">None</span>, on_bound=<span class="kw">None</span>):
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="num">1</span>)
+    srv.bind((config.HOST, config.PORT))
+    srv.listen(<span class="num">32</span>)
+    <span class="kw">if</span> on_bound:
+        on_bound(srv)
+    <span class="kw">while</span> <span class="kw">not</span> (stop_event <span class="kw">and</span> stop_event.is_set()):
+        <span class="kw">try</span>:
+            conn, addr = srv.accept()
+        <span class="kw">except</span> OSError:
+            <span class="kw">break</span>
+        threading.Thread(
+            target=_handle_connection, args=(conn, hub), daemon=<span class="kw">True</span>
+        ).start()
+    srv.close()</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه سطرًا سطرًا</h4>
+  <ul>
+    <li><code>socket.socket(AF_INET, SOCK_STREAM)</code> — سوكيت TCP/IPv4.</li>
+    <li><code>setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)</code> — يمنع خطأ «Address already in use».</li>
+    <li><code>bind((config.HOST, config.PORT))</code> — لاحظ <b>القوسين المزدوجين</b>: العنوان مجموعة (tuple) بداخل برامتر.</li>
+    <li><code>listen(32)</code> — طابور انتظار بحجم 32 (ليس حدّ عدد العملاء).</li>
+    <li><code>if on_bound: on_bound(srv)</code> — استدعاء دالة اختيارية (callback) لمشاركة المقبس مع الواجهة الرسومية.</li>
+    <li><code>while not (stop_event and stop_event.is_set())</code> — حلقة تستمر حتى يُطلب الإيقاف.
+        <code>stop_event</code> كائن <code>threading.Event</code>؛ <code>.is_set()</code> تُعيد True عند الإيقاف.</li>
+    <li><code>except OSError: break</code> — عند إغلاق مقبس الاستماع يرفع <code>accept</code> خطأ OSError، فنخرج بأمان.</li>
+    <li><code>threading.Thread(target=..., args=(conn, hub), daemon=True).start()</code> — خيط لكل عميل.</li>
+  </ul>
+</div>
+
+<h3>تتبّع تنفيذي كامل</h3>
+<div class="ascii">الخطوة 1: srv = socket(AF_INET, SOCK_STREAM)     → المقبس موجود، غير مربوط
+الخطوة 2: setsockopt(... SO_REUSEADDR, 1)        → الخيار مضبوط
+الخطوة 3: bind(("127.0.0.1", 5000))              → المنفذ 5000 محجوز
+الخطوة 4: listen(32)                             → جاهز لاستقبال الاتصالات
+الخطوة 5: accept()  ← يتجمّد هنا حتى يصل عميل
+الخطوة 6: وصل عميل → conn (لتبادله) + addr (عنوانه)
+الخطوة 7: خيط جديد يتولّى conn، والحلقة تعود لـ accept</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="b2"><span class="num">١١</span> تمييز العميل بـ MSG_PEEK + Threads</h2>
+
+<pre><code><span class="kw">def</span> <span class="fn">_handle_connection</span>(conn, hub):
+    <span class="kw">try</span>:
+        head = conn.recv(<span class="num">4</span>, socket.MSG_PEEK)
+        <span class="kw">if</span> <span class="kw">not</span> head.startswith(protocol.MAGIC):
+            _handle_http(conn, hub)
+            <span class="kw">return</span>
+        client = hub.register(RawTransport(conn), <span class="str">"python"</span>)
+        hub.serve(client)
+    <span class="kw">except</span> Exception <span class="kw">as</span> exc:
+        print(<span class="str">f"[!] خطأ في الاتصال: {exc}"</span>)
+        <span class="kw">try</span>:
+            conn.close()
+        <span class="kw">except</span> Exception:
+            <span class="kw">pass</span></code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>conn.recv(4, socket.MSG_PEEK)</code> — اقرأ 4 بايت <b>دون حذفها</b> من المخزن.</li>
+    <li><code>head.startswith(protocol.MAGIC)</code> — هل تبدأ البايتات بـ <code>b"SCP1"</code>؟
+        لو نعم → عميل بايثون؛ وإلا → HTTP/WebSocket.</li>
+    <li><code>return</code> — نخرج بعد معالجة HTTP (لأن <code>_handle_http</code> تغلق المقبس بنفسها).</li>
+    <li><code>except Exception as exc</code> — نلتقط أي خطأ ونطبعه بدل أن ينهار الخيط.</li>
+    <li><code>except Exception: pass</code> — إغلاق آمن: قد يكون المقبس مغلقًا مسبقًا.</li>
+  </ul>
+</div>
+
+<div class="box key">
+  <h4>💡 لماذا MSG_PEEK بدل قراءة عادية؟</h4>
+  لو قرأنا قراءة عادية، لاستهلكنا أول 4 بايتات، فلن يجد <code>_handle_http</code> بداية الطلب
+  (السطر <code>GET ...</code>). PEEK يحلّ ذلك: «انظر ولا تأخذ».
+</div>
+
+<h3>لماذا خيط لكل عميل؟</h3>
+<div class="ascii">بدون Threads (سيرفر تسلسلي):
+  عميل A يتصل ──► السيرفر يخدمه ──► (ينتظر رسالة A طويلًا)
+  عميل B يتصل ──► ⏳ لا يخدمه أحد حتى ينتهي A   ← سيّئ!
+
+مع Threads (سيرفر متوازٍ):
+  عميل A ──► خيط 1
+  عميل B ──► خيط 2
+  عميل C ──► خيط 3      ← الجميع يُخدَم معًا</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="b3"><span class="num">١٢</span> قراءة طلب HTTP قطعةً قطعة</h2>
+
+<pre><code><span class="kw">def</span> <span class="fn">_read_http_request</span>(sock):
+    data = <span class="str">b""</span>
+    <span class="kw">while</span> <span class="str">b"\r\n\r\n"</span> <span class="kw">not</span> <span class="kw">in</span> data:
+        chunk = sock.recv(<span class="num">1024</span>)
+        <span class="kw">if</span> <span class="kw">not</span> chunk:
+            <span class="kw">raise</span> <span class="fn">ConnectionError</span>(<span class="str">"انتهى الطلب قبل اكتمال المصافحة"</span>)
+        data += chunk
+    <span class="kw">return</span> data</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>b"\r\n\r\n"</code> — سطران فارغان (CRLF CRLF). في HTTP، هذا <b>نهاية الترويسات</b>.
+        <code>\r</code> = رجوع، <code>\n</code> = سطر جديد.</li>
+    <li><code>b"\r\n\r\n" not in data</code> — نستمر بالقراءة حتى نجد علامة النهاية.</li>
+    <li><code>recv(1024)</code> — نقرأ حتى 1024 بايت في كل مرة (قد نأخذ جزءًا فقط).</li>
+    <li><code>if not chunk: raise ...</code> — <code>b""</code> تعني أن الطرف أغلق الاتصال فجأة → خطأ.</li>
+    <li><code>data += chunk</code> — نبني الطلب تدريجيًا حتى يكتمل.</li>
+  </ul>
+</div>
+
+<div class="ascii">طلب HTTP نموذجي:
+
+  GET /chat HTTP/1.1\r\n
+  Host: localhost:5000\r\n
+  Upgrade: websocket\r\n
+  Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n
+  \r\n                    ← b"\r\n\r\n" تجد نهايتها هنا
+  (قد تتبعها حمولة POST)</div>
+
+<p>وفي <code>_handle_http</code> نقرأ حمولة POST بعدد البايتات المعلن:</p>
+<pre><code><span class="kw">if</span> <span class="str">"content-length"</span> <span class="kw">in</span> headers:
+    content_length = <span class="fn">int</span>(headers[<span class="str">"content-length"</span>])
+body = <span class="str">b""</span>
+<span class="kw">if</span> content_length:
+    body = rest.encode(<span class="str">"latin-1"</span>)
+    <span class="kw">while</span> <span class="fn">len</span>(body) &lt; content_length:
+        body += conn.recv(content_length - <span class="fn">len</span>(body))</code></pre>
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>headers["content-length"]</code> — الترويسة تُخبرنا <b>بعدد بايتات الحمولة</b>.</li>
+    <li><code>rest.encode("latin-1")</code> — نحوّل ما تبقّى إلى بايتات. <code>latin-1</code> لأن كل بايت يقابل حرفًا واحدًا.</li>
+    <li><code>while len(body) &lt; content_length</code> — نكمل القراءة حتى الحجم المعلن <b>بالضبط</b>.</li>
+    <li><code>recv(content_length - len(body))</code> — نطلب فقط المتبقّي.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="b4"><span class="num">١٣</span> طبقة النقل: recv_exact و send_frame (transports.py)</h2>
+
+<pre><code><span class="kw">class</span> <span class="fn">RawTransport</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, sock):
+        self.sock = sock
+
+    <span class="kw">def</span> <span class="fn">_recv_exact</span>(self, n):
+        buf = <span class="str">b""</span>
+        <span class="kw">while</span> <span class="fn">len</span>(buf) &lt; n:
+            chunk = self.sock.recv(n - <span class="fn">len</span>(buf))
+            <span class="kw">if</span> <span class="kw">not</span> chunk:
+                <span class="kw">raise</span> <span class="fn">ConnectionError</span>(<span class="str">"انقطع اتصال TCP"</span>)
+            buf += chunk
+        <span class="kw">return</span> buf
+
+    <span class="kw">def</span> <span class="fn">recv_frame</span>(self):
+        header = self._recv_exact(protocol.HEADER.size)
+        length = protocol.HEADER.unpack(header)[-<span class="num">1</span>]
+        payload = self._recv_exact(length) <span class="kw">if</span> length <span class="kw">else</span> <span class="str">b""</span>
+        <span class="kw">return</span> header + payload
+
+    <span class="kw">def</span> <span class="fn">send_frame</span>(self, data):
+        self.sock.sendall(data)
+
+    <span class="kw">def</span> <span class="fn">close</span>(self):
+        <span class="kw">try</span>:
+            self.sock.close()
+        <span class="kw">except</span> Exception:
+            <span class="kw">pass</span></code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>def __init__(self, sock)</code> — <b>البانية</b>: تُستدعى تلقائيًا عند إنشاء الكائن
+        <code>RawTransport(conn)</code>. تخزّن المقبس في <code>self.sock</code>.</li>
+    <li><code>self</code> — إشارة إلى الكائن نفسه (مثل <code>this</code> في لغات أخرى). دائماً أول برامتر.</li>
+    <li><code>while len(buf) &lt; n</code> — حلقة القراءة حتى نصل <b>بالضبط</b> لـ n بايت (TCP قد يجزّئ).</li>
+    <li><code>recv(n - len(buf))</code> — نطلب المتبقّي فقط (كي لا نسرق بايتات الرسالة التالية).</li>
+    <li><code>if not chunk: raise ConnectionError</code> — <code>b""</code> = الطرف أغلق الاتصال.</li>
+    <li><code>HEADER.unpack(header)[-1]</code> — نفكّ الرأس؛ آخر قيمة هي الطول.</li>
+    <li><code>X if length else b""</code> — تعبير شرطي: لو الطول صفر لا نقرأ حمولة.</li>
+    <li><code>self.sock.sendall(data)</code> — نستخدم <b>sendall</b> لا send.</li>
+    <li><code>try/except Exception: pass</code> — إغلاق آمن حتى لو كان المقبس مغلقًا مسبقًا.</li>
+  </ul>
+</div>
+
+<div class="box key">
+  <h4>💡 هذا هو قلب «التأطير»</h4>
+  <code>recv_frame</code> تقرأ الرأس (12 بايت) بالضبط، تعرف الطول، ثم تقرأ الحمولة بالضبط.
+  بهذا نعرف حدود كل رسالة على تيّار TCP المتّصل. <b>هذه أهم فكرة عملية في ملف السوكيت.</b>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="b5"><span class="num">١٤</span> recv_exact داخل WebSocket (websocket.py)</h2>
+
+<pre><code><span class="kw">def</span> <span class="fn">recv_exact</span>(sock, n):
+    buf = <span class="str">b""</span>
+    <span class="kw">while</span> <span class="fn">len</span>(buf) &lt; n:
+        chunk = sock.recv(n - <span class="fn">len</span>(buf))
+        <span class="kw">if</span> <span class="kw">not</span> chunk:
+            <span class="kw">raise</span> <span class="fn">ConnectionError</span>(<span class="str">"انقطع الاتصال أثناء القراءة"</span>)
+        buf += chunk
+    <span class="kw">return</span> buf</code></pre>
+
+<p>نفس المنطق تمامًا، لكن كدالة مستقلّة (لا داخل صنف). تُستخدم في قراءة إطار WebSocket:
+نقرأ البايتين الأولين، ثم الطول الممتدّ إن لزم، ثم القناع (4 بايتات)، ثم الحمولة.</p>
+
+<pre><code>b1, b2 = recv_exact(self.sock, <span class="num">2</span>)          <span class="cmt"># البايتان الأولان</span>
+length = b2 &amp; <span class="num">0x7F</span>                       <span class="cmt"># الطول الأساسي</span>
+<span class="kw">if</span> length == <span class="num">126</span>:
+    length = struct.unpack(<span class="str">"&gt;H"</span>, recv_exact(self.sock, <span class="num">2</span>))[<span class="num">0</span>]
+<span class="kw">elif</span> length == <span class="num">127</span>:
+    length = struct.unpack(<span class="str">"&gt;Q"</span>, recv_exact(self.sock, <span class="num">8</span>))[<span class="num">0</span>]
+mask = recv_exact(self.sock, <span class="num">4</span>) <span class="kw">if</span> masked <span class="kw">else</span> <span class="kw">None</span>
+data = recv_exact(self.sock, length) <span class="kw">if</span> length <span class="kw">else</span> <span class="str">b""</span></code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>recv_exact(self.sock, 2)</code> — نقرأ بايتين بالضبط (رأس إطار WebSocket).</li>
+    <li><code>struct.unpack("&gt;H", ...)[0]</code> — نحول بايتين إلى رقم. <code>[0]</code> لأن unpack تُعيد مجموعة.</li>
+    <li><code>struct.unpack("&gt;Q", ...)[0]</code> — نحول 8 بايتات إلى رقم (للرسائل الكبيرة).</li>
+    <li><code>recv_exact(self.sock, 4) if masked else None</code> — القناع موجود فقط إن كان البت MASK مضبوطًا.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="b6"><span class="num">١٥</span> العميل: create_connection (client.py)</h2>
+
+<pre><code>self.sock = socket.create_connection((self.host, self.port))
+self.transport = RawTransport(self.sock)</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>socket.create_connection((host, port))</code> — تجمع إنشاء السوكيت + الاتصال في خطوة واحدة،
+        وتتعامل تلقائيًا مع تعدّد عناوين المضيف (IPv4/IPv6).</li>
+    <li><code>(self.host, self.port)</code> — مجموعة العنوان (tuple).</li>
+    <li>ثم نلفّه بـ <code>RawTransport</code> لنحصل على واجهة <code>recv_frame/send_frame</code> الموحّدة.</li>
+  </ul>
+</div>
+
+<p>وبعد الاتصال يرسل العميل إطار HELLO ثم يستقبل HELLO_ACK — كلها عبر نفس <code>transport</code>:</p>
+<pre><code>self.transport.send_frame(protocol.pack_frame(protocol.T_HELLO, json.dumps(hello).encode()))
+frame = self.transport.recv_frame()
+_ftype, _flags, payload = protocol.unpack_frame(frame)</code></pre>
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — <code>_ftype, _flags, payload = ...</code></h4>
+  <b>تفكيك المجموعة</b> (tuple unpacking): <code>unpack_frame</code> تُعيد ثلاث قيم، فنوزّعها على ثلاثة
+  متغيّرات في سطر واحد. البادئة <code>_</code> تعني «لن أستخدم هذا المتغيّر» (اصطلاح).
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="b7"><span class="num">١٦</span> الإغلاق الآمن للمقبس</h2>
+
+<pre><code><span class="kw">def</span> <span class="fn">close</span>(self):
+    <span class="kw">try</span>:
+        self.sock.close()
+    <span class="kw">except</span> Exception:
+        <span class="kw">pass</span></code></pre>
+
+<p>وفي الخادم عند الإيقاف:</p>
+<pre><code><span class="kw">while</span> <span class="kw">not</span> (stop_event <span class="kw">and</span> stop_event.is_set()):
+    <span class="kw">try</span>:
+        conn, addr = srv.accept()
+    <span class="kw">except</span> OSError:
+        <span class="kw">break</span>
+srv.close()</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — لماذا try/except حول close؟</h4>
+  لأن <code>close()</code> قد ترفع استثناء لو كان المقبس مغلقًا مسبقًا (أو انقطع الاتصال).
+  <code>try/except Exception: pass</code> يجعل الإغلاق «آمنًا» (idempotent).
+</div>
+
+<div class="box key">
+  <h4>💡 ترتيب الإغلاق الصحيح</h4>
+  <div class="ascii">1. إرسال T_BYE (إشعار وداع)   ← اختياري لكن مؤدّب
+2. close()                    ← تحرير المقبس
+3. الخيط ينتهي تلقائيًا</div>
+  في المشروع، <code>hub.serve</code> ينتظر حتى ينكسر الاتصال، ثم <code>hub.remove</code> تستدعي
+  <code>transport.close()</code> وتبثّ إشعار خروج.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="b8"><span class="num">١٧</span> 🧪 تجارب عملية</h2>
+
+<h3>تجربة 1: راقب دورة حياة السوكيت</h3>
+<pre><code>bash run_local.sh              <span class="cmt"># الطرفية 1: "السيرفر يعمل على المنفذ 5000"</span>
+python client.py --name ali    <span class="cmt"># الطرفية 2: "متصل بـ 127.0.0.1:5000"</span></code></pre>
+<p>راقب سجل السيرفر: <code>[+] ali (python) — تشفير: ...</code> ثم عند الخروج <code>[-] ali انقطع</code>.</p>
+
+<h3>تجربة 2: شاهد التأطير بعينك</h3>
+<pre><code><span class="cmt"># في بايثون تفاعلي — اربط بسيرفر يعمل واقرأ أول 12 بايت (الرأس)</span>
+<span class="kw">import</span> socket, protocol
+s = socket.create_connection((<span class="str">"127.0.0.1"</span>, <span class="num">5000</span>))
+<span class="cmt"># سترسل HELLO أولًا ثم تقرأ رأس الرد: "SCP1" + نسخة + نوع + أعلام + طول</span></code></pre>
+
+<h3>تجربة 3: لاحظ تجزئة TCP</h3>
+<p>أرسل رسالة طويلة جدًا (آلاف الحروف) وراقب أن <code>recv</code> تُعيدها على عدّة دفعات —
+هذا يثبت لماذا نحتاج <code>_recv_exact</code>.</p>
+
+<h3>تجربة 4: عطّل SO_REUSEADDR وراقب الخطأ</h3>
+<p>أوقف السيرفر ثم أعد تشغيله فورًا: بدون الخيار ستظهر «Address already in use».
+مع الخيار (كما في المشروع) يعمل مباشرة.</p>
+
+<h3>تجربة 5: راقب المنافذ المفتوحة</h3>
+<pre><code>ss -tlnp | grep 5000      <span class="cmt"># على لينكس: يظهر السيرفر LISTEN على 5000</span>
+<span class="cmt"># أو: netstat -tlnp | grep 5000</span></code></pre>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="b9"><span class="num">١٨</span> 📚 المراجع</h2>
+<ul>
+  <li><b>التوثيق الرسمي:</b> <a href="https://docs.python.org/3/library/socket.html" target="_blank" rel="noopener">socket — Low-level networking interface</a> (كل دالة وبرامتر وثابت).</li>
+  <li><b>مقدمة عملية:</b> <a href="https://realpython.com/python-sockets/" target="_blank" rel="noopener">Socket Programming in Python (Guide) — Real Python</a>.</li>
+  <li><b>التأطير (Framing):</b> <a href="https://oneuptime.com/blog/post/2026-03-20-message-framing-python-tcp-sockets/view" target="_blank" rel="noopener">Message Framing for Python TCP Sockets</a>.</li>
+  <li><b>send vs sendall:</b> <a href="https://docs.python.org/3/howto/sockets.html" target="_blank" rel="noopener">Socket Programming HOWTO — Python docs</a>.</li>
+  <li><b>مصافحة TCP:</b> <a href="https://datatracker.ietf.org/doc/html/rfc9293" target="_blank" rel="noopener">RFC 9293 — Transmission Control Protocol (TCP)</a>.</li>
+  <li><b>خيارات السوكيت:</b> <a href="https://man7.org/linux/man-pages/man7/socket.7.html" target="_blank" rel="noopener">socket(7) — Linux man page</a>.</li>
+</ul>
+
+<div class="footer">
+  جزء من مشروع <b>secure-chat</b> التعليمي. الكود غير مُدقّق أمنيًا — للتعلم فقط.
+</div>
+
+</div>
+</body>
+</html>

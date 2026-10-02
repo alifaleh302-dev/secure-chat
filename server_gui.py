@@ -12,6 +12,7 @@
 """
 
 import argparse
+import os
 import queue
 import threading
 import tkinter as tk
@@ -155,11 +156,11 @@ class ServerAdminGUI:
 
     def _update_status(self):
         if self.running:
-            self.status.configure(text="يعمل", fg=COLORS["ok"])
-            self.btn_toggle.configure(text="إيقاف السيرفر", bg=COLORS["err"])
+            self.status.configure(text=g.rtl("يعمل"), fg=COLORS["ok"])
+            self.btn_toggle.configure(text=g.rtl("إيقاف السيرفر"), bg=COLORS["err"])
         else:
-            self.status.configure(text="متوقف", fg=COLORS["err"])
-            self.btn_toggle.configure(text="تشغيل السيرفر", bg=COLORS["ok"])
+            self.status.configure(text=g.rtl("متوقف"), fg=COLORS["err"])
+            self.btn_toggle.configure(text=g.rtl("تشغيل السيرفر"), bg=COLORS["ok"])
 
     def apply_settings(self):
         config.update({
@@ -204,7 +205,11 @@ def main():
     parser = argparse.ArgumentParser(description="واجهة إدارة الخادم (tkinter)")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=config.PORT)
+    parser.add_argument("--font", default=None, help="اسم خط يدعم العربية (مثل: 'Noto Naskh Arabic')")
     args = parser.parse_args()
+
+    if args.font:
+        os.environ["SC_GUI_FONT"] = args.font
 
     root = tk.Tk()
     app = ServerAdminGUI(root, args.host, args.port)

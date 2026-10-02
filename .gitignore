@@ -12,3 +12,6 @@ s1.log
 s2.log
 m1.log
 m2.log
+# لقطات اختبار الواجهات (مؤقتة)
+_gui_preview.png
+_server_preview.png

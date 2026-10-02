@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شيفرة فيجينير — نظرية مبسّطة ثم شرح الكود بالتفصيل الممل</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b22; --line:#30363d; --fg:#e6edf3; --mut:#8b949e;
+    --acc:#2f81f7; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --code:#0b0f14;
+    --syn:#a371f7;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:system-ui,"Segoe UI",Tahoma,Helvetica,Arial,sans-serif;
+    line-height:1.95; font-size:16px;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:32px 20px 80px;}
+  header.hero{
+    border:1px solid var(--line); background:linear-gradient(180deg,#161b22,#0d1117);
+    border-radius:18px; padding:30px 28px; margin-bottom:28px;
+  }
+  header.hero h1{margin:0 0 10px; font-size:26px; line-height:1.5;}
+  header.hero p{margin:0; color:var(--mut); font-size:15px;}
+  .badges{margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;}
+  .badge{font-size:12px; border:1px solid var(--line); background:#0d1117; color:var(--mut);
+         padding:4px 10px; border-radius:999px;}
+  nav.toc{border:1px solid var(--line); background:var(--card); border-radius:14px;
+          padding:18px 22px; margin-bottom:32px;}
+  nav.toc h2{margin:0 0 10px; font-size:16px;}
+  nav.toc ol{margin:0; padding-inline-start:22px;}
+  nav.toc a{color:var(--acc); text-decoration:none; font-size:14.5px;}
+  nav.toc a:hover{text-decoration:underline;}
+  h2.sec{font-size:22px; margin:52px 0 8px; padding-bottom:12px;
+         border-bottom:2px solid var(--line); scroll-margin-top:20px;}
+  h2.sec .num{display:inline-flex; align-items:center; justify-content:center;
+    width:34px; height:34px; border-radius:10px; background:var(--acc); color:#fff;
+    font-size:17px; margin-inline-end:10px; vertical-align:middle;}
+  h3{font-size:18px; margin:30px 0 10px; color:#fff;}
+  h4{font-size:15.5px; margin:22px 0 8px; color:var(--acc);}
+  p{margin:12px 0;}
+  ul,ol{margin:12px 0; padding-inline-start:26px;}
+  li{margin:7px 0;}
+  code{font-family:"JetBrains Mono",Consolas,Monaco,monospace;
+    background:#1c2128; border:1px solid var(--line); border-radius:6px;
+    padding:1px 6px; font-size:13.5px; direction:ltr; unicode-bidi:embed; display:inline-block;}
+  .ref{font-size:13px; color:var(--mut);}
+  pre{background:var(--code); border:1px solid var(--line); border-radius:12px;
+      padding:16px 18px; overflow-x:auto; direction:ltr; text-align:left;
+      margin:14px 0; position:relative;}
+  pre code{background:none; border:0; padding:0; font-size:13.5px; line-height:1.7; display:block; color:#e6edf3;}
+  .cmt{color:#8b949e;}
+  .kw{color:#ff7b72;}
+  .fn{color:#d2a8ff;}
+  .str{color:#a5d6ff;}
+  .num{color:#79c0ff;}
+  .box{border-radius:12px; padding:14px 18px; margin:16px 0; border:1px solid var(--line); background:var(--card);}
+  .box h4{margin:0 0 8px; font-size:15px;}
+  .key{border-color:#1f6feb; background:#0d1b2e;}
+  .key h4{color:#79c0ff;}
+  .warn{border-color:#9e6a03; background:#2b2308;}
+  .warn h4{color:#e3b341;}
+  .danger{border-color:#8b2c2c; background:#2d1114;}
+  .danger h4{color:#ff7b72;}
+  .syn{border-color:#8957e5; background:#1c1526;}
+  .syn h4{color:var(--syn);}
+  .syn .lbl{color:var(--syn); font-weight:700;}
+  .syn code{background:#241a33; border-color:#4b3673;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:start; vertical-align:top;}
+  th{background:#1c2128; color:#fff; font-weight:600;}
+  tr:nth-child(even) td{background:#12161c;}
+  .ascii{background:var(--code); border:1px solid var(--line); border-radius:12px;
+    padding:16px; overflow-x:auto; direction:ltr; text-align:left;
+    font-family:Consolas,Monaco,monospace; font-size:13px; line-height:1.55; color:#79c0ff;
+    white-space:pre;}
+  .footer{margin-top:60px; border-top:1px solid var(--line); padding-top:20px; color:var(--mut); font-size:13px;}
+  a{color:var(--acc);}
+  .tick{color:var(--ok); font-weight:700;}
+  .cross{color:var(--bad); font-weight:700;}
+  .step{counter-reset:st;}
+  .step li{margin:10px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🔡 شيفرة فيجينير (Vigenère) — من النظرية إلى الكود</h1>
+  <p>أولًا نفهم <b>الفكرة</b> بلغة بسيطة، ثم نفتح كود المشروع ونشرحه <b>سطرًا سطرًا</b> بلا أن نترك شيئًا.
+     كل سطر مأخوذ من <code>crypto/vigenere.py</code> و<code>webpages.py</code>، وكل سِنْتاكس غريب مشروح في صندوق بنفسجي.</p>
+  <div class="badges">
+    <span class="badge">🎓 نظري مبسّط</span>
+    <span class="badge">🔬 تفصيل ممل</span>
+    <span class="badge">🐍 بايثون</span>
+    <span class="badge">🌐 جافاسكربت</span>
+    <span class="badge">🔗 مراجع</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>📑 محتويات الشرح</h2>
+  <ol>
+    <li><a href="#s1">من شيفرة قيصر إلى فيجينير (الفكرة)</a></li>
+    <li><a href="#s2">مثال يدوي كامل خطوة بخطوة</a></li>
+    <li><a href="#s3">لماذا هي أقوى من قيصر؟ ولماذا تُكسَر رغم ذلك؟</a></li>
+    <li><a href="#s4">لماذا نعمل على 256 بايت لا 26 حرفًا؟</a></li>
+    <li><a href="#s5">شرح الكود بالتفصيل الممل (بايثون)</a></li>
+    <li><a href="#s6">النسخة في المتصفح (جافاسكربت) ومطابقتها للبايثون</a></li>
+    <li><a href="#s7">كيف تتكامل مع HMAC والبروتوكول؟</a></li>
+    <li><a href="#s8">🧪 تمرين عملي — اكسر المفتاح بنفسك</a></li>
+    <li><a href="#s9">📚 المراجع</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s1"><span class="num">١</span> من شيفرة قيصر إلى فيجينير (الفكرة)</h2>
+
+<h3>الخطوة صفر: شيفرة قيصر (Caesar)</h3>
+<p>يوليوس قيصر كان يُشفّر رسائله بإزاحة كل حرف عددًا <b>ثابتًا</b> من المواضع في الأبجدية. مثلًا إزاحة 3:</p>
+<div class="ascii">A → D    B → E    C → F    ...    X → A    Y → B    Z → C
+
+النص:    HELLO
+المشفّر: KHOOR      (كل حرف تحرّك 3 خطوات)</div>
+<p>مشكلتها واضحة: <b>26 احتمالًا فقط</b> (إزاحة 0 إلى 25). أي مهاجم يجرّبها كلها في ثوانٍ.</p>
+
+<h3>الخطوة الأولى: لماذا لا نغيّر الإزاحة لكل حرف؟</h3>
+<p>هذه بالضبط فكرة فيجينير. بدل إزاحة <b>واحدة</b> ثابتة، نستخدم <b>مفتاحًا</b> (كلمة) يعطينا إزاحة
+مختلفة لكل موضع. تخيّل أن لديك عدة أقراص قيصر، وتنتقل بينها حسب حرف المفتاح:</p>
+<div class="ascii">النص:      A  T  T  A  C  K
+المفتاح:   L  E  M  O  N  L      (مفتاح LEMON مكرّر)
+إزاحة:    11  4 12 14 13 11      (A=0, B=1, ... L=11, E=4, M=12 ...)
+                    ↓  نجمع الإزاحة لكل حرف (mod 26)
+المشفّر:   L  X  F  O  P  V</div>
+
+<div class="box key">
+  <h4>🔑 الفكرة في جملة واحدة</h4>
+  قيصر: <b>إزاحة واحدة لكل الرسالة</b>. فيجينير: <b>إزاحة مختلفة لكل موضع</b>، مأخوذة من مفتاح متكرّر.
+  هذا يجعل الحرف نفسه (مثل A) يُشفَّر إلى حروف مختلفة حسب موضعه — فتُخفى الأنماط.
+</div>
+
+<h3>الاسم والمصطلح</h3>
+<ul>
+  <li><b>متعدّد الأبجديات (Polyalphabetic):</b> نستخدم «أبجديات مُزاحة» متعدّدة بدل واحدة.</li>
+  <li><b>Tabula Recta:</b> جدول 26×26 يُظهر كل الإزاحات؛ فيجينير ينتقل بين صفوفه حسب المفتاح.</li>
+  <li>سُمّيت على اسم <b>Blaise de Vigenère</b> (القرن 16)، رغم أن وصفها الأصلي أقدم.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s2"><span class="num">٢</span> مثال يدوي كامل خطوة بخطوة</h2>
+
+<p>نشفّر <code>ATTACKATDAWN</code> بمفتاح <code>LEMON</code>. أولًا نكرّر المفتاح حتى يبلغ طول النص:</p>
+<div class="ascii">النص:     A T T A C K A T D A W N      (12 حرفًا)
+المفتاح:  L E M O N L E M O N L E      (LEMON مكرّر حتى 12)
+
+نُسند رقمًا لكل حرف (A=0, B=1, ..., Z=25):
+A=0  T=19  T=19  A=0  C=2  K=10  A=0  T=19  D=3  A=0  W=22  N=13
+L=11 E=4   M=12  O=14 N=13 L=11  E=4  M=12  O=14 N=13 L=11  E=4
+
+نجمع (mod 26) حرفًا حرفًا:
+  A+L = 0+11 = 11  → L
+  T+E = 19+4 = 23  → X
+  T+M = 19+12= 31  → 31 mod 26 = 5  → F
+  A+O = 0+14 = 14  → O
+  C+N = 2+13 = 15  → P
+  K+L = 10+11= 21  → V
+  A+E = 0+4  =  4  → E
+  T+M = 19+12= 31  → 5 → F
+  D+O = 3+14 = 17  → R
+  A+N = 0+13 = 13  → N
+  W+L = 22+11= 33  → 33 mod 26 = 7 → H
+  N+E = 13+4 = 17  → R
+
+المشفّر النهائي:  LXFOPVEFRNHR</div>
+
+<p>ولفكّ التشفير نطرح إزاحة المفتاح بدل جمعها:</p>
+<div class="ascii">P[i] = (C[i] − K[i]) mod 26
+
+  L−L = 11−11 = 0  → A
+  X−E = 23−4  = 19 → T
+  ... وهكذا نستعيد ATTACKATDAWN</div>
+
+<div class="box warn">
+  <h4>⚠️ انتبه للـ mod (باقي القسمة)</h4>
+  في بايثون <code>%</code> يعطي دائمًا نتيجة موجبة. لو كانت النتيجة سالبة (كما يحدث عند الفكّ)،
+  <code>-1 % 26 = 25</code>. هذا مهم جدًا وسنراه في الكود.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s3"><span class="num">٣</span> لماذا هي أقوى من قيصر؟ ولماذا تُكسَر رغم ذلك؟</h2>
+
+<h3>نقطة قوّتها: إخفاء تكرار الحروف</h3>
+<p>في قيصر، حرف <code>E</code> (الأكثر شيوعًا في الإنجليزية) يصبح دائمًا نفس الحرف → يسهل تخمينه.
+في فيجينير، <code>E</code> يصبح حروفًا مختلفة حسب موضعه → يختفي التكرار المباشر. <span class="tick">✔</span></p>
+
+<h3>نقطة ضعفها: المفتاح قصير ومتكرّر</h3>
+<p>المفتاح يتكرّر كل <code>len(K)</code> موضعًا. هذا يُنتج <b>دورية (period)</b> يعثر عليها المهاجم بسهولة:</p>
+<ul>
+  <li><b>اختبار كاسيسكي (Kasiski):</b> نبحث عن تسلسلات مكرّرة في النص المشفّر؛ المسافة بينها من مضاعفات طول المفتاح.</li>
+  <li><b>مؤشر التطابق (Index of Coincidence):</b> طريقة إحصائية لتحديد طول المفتاح بدقة.</li>
+  <li>بعد معرفة الطول، تُقسَم الرسالة إلى <code>len(K)</code> مجموعات، وكل مجموعة تصبح شيفرة قيصر بسيطة تُكسَر بالتحليل التكراري!</li>
+</ul>
+
+<div class="box danger">
+  <h4>🚨 حقيقة يجب ألا تُنسى</h4>
+  فيجينير <b>مكسورة عمليًا</b> منذ القرن التاسع عشر (بشار غرينيفيلد 1854، ثم كاسيسكي).
+  ولو كان المفتاح بنفس طول الرسالة واستُخدم مرّة واحدة فقط (one-time pad)، لصارت غير قابلة للكسر نظريًا —
+  لكن هذا ليس ما يفعله المشروع.
+  <br><b>المشروع يستخدمها للتعليم فقط</b> — لفهم مبدأ «الإزاحة المتغيّرة»، لا للحماية الحقيقية.
+</div>
+
+<h3>ضعف ثالث: لا حماية من التعديل</h3>
+<p>فيجينير (مثل كل الشيفرات بدون مصادقة) <b>لا تكشف</b> من يعدّل الرسالة. المهاجم يستطيع قلب بايتات
+دون أن يعرف أحد. لهذا المشروع يضيف <b>HMAC</b> فوقها (Encrypt-then-MAC) — وسنرى ذلك في القسم ٧.</p>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s4"><span class="num">٤</span> لماذا نعمل على 256 بايت لا 26 حرفًا؟</h2>
+
+<p>هذه <b>أهمّ نقطة عملية</b> في المشروع، وقد تفوت على القارئ السريع. الكلاسيكي في فيجينير يعمل على
+الحروف <code>A–Z</code> (26 قيمة). لكن المشروع يعمل على <b>البايتات</b> (0–255):</p>
+
+<table>
+  <tr><th>الجانب</th><th>الكلاسيكي (A–Z)</th><th>المشروع (بايتات)</th></tr>
+  <tr><td>النطاق (N)</td><td>26</td><td><b>256</b></td></tr>
+  <tr><td>المعادلة</td><td><code>(P + K) mod 26</code></td><td><code>(P + K) mod 256</code></td></tr>
+  <tr><td>يتعامل مع</td><td>حروف إنجليزية فقط</td><td>أي بيانات: عربي، إيموجي، JSON</td></tr>
+</table>
+
+<h3>السبب (مهم جدًا)</h3>
+<p>البروتوكول ينقل <code>JSON</code> مُرمَّزًا بـ <b>UTF-8</b> — وفيه نص عربي وإيموجي. الحرف العربي في UTF-8
+يأخذ <b>بايتين</b>، والإيموجي حتى <b>4 بايتات</b>. لو طبّقنا فيجينير على <code>A–Z</code> فقط:</p>
+<ul>
+  <li>الحروف العربية والإيموجي <b>لن تُشفَّر</b> وستمرّ بالوضوح التام — أمر مربك ومضلّل تعليميًا.</li>
+  <li>أيضًا سنُفسد البنية إن حاولنا تحويل بايتات UTF-8 إلى حروف لاتينية.</li>
+</ul>
+<p>الحل: نطبّق <b>نفس المبدأ الرياضي</b> (إزاحة دورية) لكن على كل بايت مباشرة، فيصبح النطاق 256.</p>
+
+<div class="box key">
+  <h4>💡 ملاحظة لغوية</h4>
+  لاحظ أن النص العربي يُخزَّن كـ <b>بايتات</b>. عندما نُشفّر بايتات سليمة ونعيد لصقها، يبقى UTF-8 صالحًا.
+  لكن لو غيّرنا بايتًا واحدًا في المنتصف، قد يُفسد حرفًا عربيًا كاملًا (لأنه يتكوّن من بايتين). هذا سنراه في تمرين HMAC.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s5"><span class="num">٥</span> شرح الكود بالتفصيل الممل (بايثون)</h2>
+
+<p>هذا الملف كامل: <code>crypto/vigenere.py</code>. سنأخذ كل جزء ونتوقّف عنده.</p>
+
+<h3>5.1 — التوثيق والثابت</h3>
+<pre><code>DEFAULT_KEY = <span class="str">b"ahmed"</span></code></pre>
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — <code>b"ahmed"</code></h4>
+  البادئة <code>b</code> تعني <b>بايتات (bytes)</b> لا نصًا. إذن <code>DEFAULT_KEY</code> هو 5 بايتات:
+  <code>61 68 6d 65 64</code> (a=0x61, h=0x68, m=0x6d, e=0x65, d=0x64). المفتاح <b>قصير عن قصد</b>
+  (5 بايتات) ليكون كسره ممكنًا في التمرين.
+</div>
+
+<h3>5.2 — توليد تيّار المفتاح: <code>_keystream</code></h3>
+<pre><code><span class="kw">def</span> <span class="fn">_keystream</span>(key, length):
+    <span class="str">"""يكرّر المفتاح حتى يبلغ طول الرسالة."""</span>
+    <span class="kw">if</span> <span class="kw">not</span> key:
+        <span class="kw">raise</span> <span class="fn">ValueError</span>(<span class="str">"فيجينير: المفتاح لا يمكن أن يكون فارغاً"</span>)
+    reps = (length // <span class="fn">len</span>(key)) + <span class="num">1</span>
+    <span class="kw">return</span> (key * reps)[:length]</code></pre>
+
+<p><b>ماذا تفعل؟</b> لو الرسالة 12 بايت والمفتاح 5 بايتات، نحتاج تكرار المفتاح. تُرجع تيّارًا بطول الرسالة بالضبط.</p>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه سطرًا سطرًا</h4>
+  <ul>
+    <li><code>if not key:</code> — المفتاح الفارغ <code>b""</code> يُعتبر <b>خطأ (False)</b> في بايثون، لذا
+        <code>not key</code> صحيحة عند الفراغ → نرفع استثناء. (نحمي من القسمة على صفر في السطر التالي.)</li>
+    <li><code>length // len(key)</code> — العامل <code>//</code> هو <b>قسمة صحيحة</b> (تُهمل الكسر). مثلًا
+        <code>12 // 5 = 2</code>.</li>
+    <li><code>+ 1</code> — نضيف واحدًا لضمان كفاية التكرار (لأن القسمة الصحيحة تُنقص).</li>
+    <li><code>key * reps</code> — ضرب bytes في عدد = <b>تكرار</b>. مثلًا <code>b"ahmed" * 3 = b"ahmedahmedahmed"</code>.</li>
+    <li><code>[:length]</code> — <b>تقطيع</b> (slicing) نأخذ أول <code>length</code> بايت فقط.</li>
+  </ul>
+</div>
+
+<h4>تتبّع عددي كامل (مهم)</h4>
+<div class="ascii">key    = b"ahmed"  (len = 5)
+length = 12
+
+reps = (12 // 5) + 1 = 2 + 1 = 3
+key * 3 = b"ahmedahmedahmed"   (15 بايت)
+[:12]   = b"ahmedahmedah"      ← 12 بايت بالضبط ✔</div>
+
+<h3>5.3 — التشفير: <code>vigenere_encrypt</code></h3>
+<pre><code><span class="kw">def</span> <span class="fn">vigenere_encrypt</span>(key, plaintext):
+    <span class="str">"""C[i] = (P[i] + K[i]) mod 256"""</span>
+    ks = _keystream(key, <span class="fn">len</span>(plaintext))
+    <span class="kw">return</span> <span class="fn">bytes</span>((p + k) &amp; <span class="num">0xFF</span> <span class="kw">for</span> p, k <span class="kw">in</span> <span class="fn">zip</span>(plaintext, ks))</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>zip(plaintext, ks)</code> — تدمج مجموعتين عنصرًا بعنصر: (p₀,k₀), (p₁,k₁)… حتى أقصر طول.
+        بما أن <code>ks</code> بنفس طول <code>plaintext</code>، فسنمرّ على كل البايتات.</li>
+    <li><code>p + k</code> — جمع البايتين كأعداد صحيحة (0..255). قد ينتج رقم أكبر من 255.</li>
+    <li><code>&amp; 0xFF</code> — <b>عملية AND البتّية</b> مع <code>0xFF</code> (أي 255 = البتات الثمانية الدنيا).
+        هذه طريقة سريعة لتنفيذ <code>mod 256</code> بدقة. <span class="lbl">لماذا؟</span> لأن أي رقم أكبر من 255
+        يبقى منه فقط البتات الثمانية الأولى — وهذا هو بالضبط باقي القسمة على 256.</li>
+    <li><code>bytes(... for ...)</code> — <b>تعبير مولّد</b> يبني bytes مباشرة من الأرقام الناتجة.</li>
+  </ul>
+</div>
+
+<h4>مثال رقمي كامل</h4>
+<div class="ascii">plaintext = b"AB"      → 65, 66
+key       = b"ahmed"   → 97, 104  (أول بايتين)
+ks        = b"ah"      → 97, 104
+
+البايت 0:  65 + 97  = 162        → 162 & 0xFF = 162   (0xA2)
+البايت 1:  66 + 104 = 170        → 170 & 0xFF = 170   (0xAA)
+
+المشفّر = b"\xa2\xaa"</div>
+
+<div class="box warn">
+  <h4>⚠️ لاحظ: الناتج ليس نصًا مقروءًا</h4>
+  الناتج بايتات عشوائية المظهر. هذا مقصود — لكنه يعني أن فيجينير هنا تعمل على <b>مستوى البايتات</b>
+  وليس الحروف. تمامًا كما شرحنا في القسم ٤.
+</div>
+
+<h3>5.4 — فك التشفير: <code>vigenere_decrypt</code></h3>
+<pre><code><span class="kw">def</span> <span class="fn">vigenere_decrypt</span>(key, ciphertext):
+    <span class="str">"""P[i] = (C[i] - K[i]) mod 256"""</span>
+    ks = _keystream(key, <span class="fn">len</span>(ciphertext))
+    <span class="kw">return</span> <span class="fn">bytes</span>((c - k) &amp; <span class="num">0xFF</span> <span class="kw">for</span> c, k <span class="kw">in</span> <span class="fn">zip</span>(ciphertext, ks))</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — الفرق الوحيد</h4>
+  التشفير <code>p + k</code>، والفكّ <code>c - k</code>. وكلاهما يستخدم <code>&amp; 0xFF</code>.
+  <br><b>السؤال المهم:</b> ماذا لو نتج رقم سالب؟ مثلًا <code>5 - 10 = -5</code>.
+  في بايثون، <code>-5 &amp; 0xFF = 251</code>، وهو بالضبط <code>-5 mod 256</code>. سِحْر البتّيات!
+</div>
+
+<div class="ascii">مثال على الناتج السالب:
+c - k = 5 - 10 = -5
+-5 في تمثيل 8 بت (two's complement) = 11111011 = 251
+-5 mod 256 = 251 ✔  (نفس النتيجة)</div>
+
+<h3>5.5 — تحويل المفتاح: <code>resolve_key</code></h3>
+<pre><code><span class="kw">def</span> <span class="fn">resolve_key</span>(raw):
+    <span class="kw">if</span> raw <span class="kw">is</span> <span class="kw">None</span>:
+        <span class="kw">return</span> DEFAULT_KEY
+    <span class="kw">if</span> <span class="fn">isinstance</span>(raw, <span class="fn">bytes</span>):
+        <span class="kw">return</span> raw <span class="kw">or</span> DEFAULT_KEY
+    text = raw.strip()
+    <span class="kw">return</span> text.encode(<span class="str">"utf-8"</span>) <span class="kw">if</span> text <span class="kw">else</span> DEFAULT_KEY</code></pre>
+
+<p><b>الهدف:</b> الإعدادات تأتي كنص (مثل <code>"ahmed"</code> من <code>config.CLASSICAL_KEY</code>)،
+لكن الدوال تحتاج بايتات. هذه الدالة توحّد الصيغة.</p>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>raw is None</code> — نقارن بـ <code>is</code> لا <code>==</code>، لأننا نتحقّق من <b>الهوية</b>
+        (هل هي القيمة المجرّدة None؟) لا من المساواة.</li>
+    <li><code>isinstance(raw, bytes)</code> — يفحص هل المدخل من نوع bytes فعلًا.</li>
+    <li><code>raw or DEFAULT_KEY</code> — سِحْر بايثوني: لو كان <code>raw</code> فارغًا (<code>b""</code> = خطأ)،
+        نُعيد الافتراضي؛ وإلا نُعيد <code>raw</code> نفسه. (اختصار لـ <code>raw if raw else DEFAULT_KEY</code>.)</li>
+    <li><code>raw.strip()</code> — يحذف المسافات البادئة/اللاحقة من النص (مهم عند قراءة المفاتيح من الإعدادات).</li>
+    <li><code>text.encode("utf-8")</code> — يحوّل النص إلى بايتات UTF-8. مفتاح عربي سيصبح عدة بايتات.</li>
+    <li><code>X if text else Y</code> — تعبير شرطي: لو النص غير فارغ نُشفّره، وإلا نُعيد الافتراضي.</li>
+  </ul>
+</div>
+
+<h3>5.6 — من يستدعي هذه الدوال؟ <code>protocol.py</code></h3>
+<pre><code><span class="kw">if</span> cipher == <span class="str">"VIGENERE"</span>:
+    ct = vigenere.vigenere_encrypt(vigenere.resolve_key(config.CLASSICAL_KEY), plaintext)
+    payload, flags = ct, F_ENCRYPTED</code></pre>
+<p>لاحظ: فيجينير لا تستخدم مفاتيح HKDF المشتقّة من ECDH، بل مفتاحًا بشريًا قصيرًا من الإعدادات
+(<code>config.CLASSICAL_KEY</code>، افتراضيًا <code>"ahmed"</code>) — <b>عن قصد</b> ليبقى قابلًا للكسر.</p>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s6"><span class="num">٦</span> النسخة في المتصفح (جافاسكربت) ومطابقتها للبايثون</h2>
+
+<p>المتصفح لا يشغّل بايثون، لذا أُعيدت كتابة نفس المنطق بـ جافاسكربت في <code>webpages.py</code>:</p>
+
+<pre><code><span class="kw">function</span> <span class="fn">vigenereTransform</span>(data, key, decrypt) {
+  <span class="kw">const</span> kb = <span class="kw">new</span> <span class="fn">TextEncoder</span>().encode(key);
+  <span class="kw">if</span> (!kb.length) <span class="kw">throw</span> <span class="kw">new</span> <span class="fn">Error</span>(<span class="str">"مفتاح فيجينير فارغ"</span>);
+  <span class="kw">const</span> out = <span class="kw">new</span> <span class="fn">Uint8Array</span>(data.length);
+  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i &lt; data.length; i++) {
+    <span class="kw">const</span> k = kb[i % kb.length];
+    out[i] = decrypt ? (data[i] - k) &amp; <span class="num">0xFF</span> : (data[i] + k) &amp; <span class="num">0xFF</span>;
+  }
+  <span class="kw">return</span> out;
+}</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>new TextEncoder().encode(key)</code> — يحوّل نص المفتاح إلى <b>بايتات UTF-8</b>
+        (مكافئ <code>.encode("utf-8")</code> في بايثون).</li>
+    <li><code>new Uint8Array(data.length)</code> — مصفوفة بايتات بحجم معروف (0..255 لكل عنصر).</li>
+    <li><code>kb[i % kb.length]</code> — <b>هذا هو تكرار المفتاح</b>! بدل بناء تيّار كامل كما في بايثون،
+        نأخذ البايت المناسب مباشرة بباقي القسمة. نفس النتيجة، طريقة مختلفة.</li>
+    <li><code>decrypt ? (data[i]-k) : (data[i]+k)</code> — العامل الثلاثي: نطرح عند الفكّ، ونجمع عند التشفير.</li>
+    <li><code>&amp; 0xFF</code> — نفس الحيلة البتّية لتنفيذ mod 256.</li>
+  </ul>
+</div>
+
+<div class="box key">
+  <h4>✅ مطابقة بايتية مُتحقَّق منها</h4>
+  الكودان (بايثون وجافاسكربت) <b>متطابقان بايتيًا</b> — أي رسالة تُشفَّر في المتصفح تُفكّ في السيرفر
+  والعكس. الفرق الوحيد في الأسلوب: بايثون تبني تيّارًا كاملًا (<code>_keystream</code>)،
+  وجافاسكربت تحسب الموضع عند الطلب (<code>i % len</code>). النتيجة الرياضية واحدة.
+</div>
+
+<h4>مقارنة جانبية</h4>
+<table>
+  <tr><th>الجانب</th><th>بايثون</th><th>جافاسكربت</th></tr>
+  <tr><td>تكرار المفتاح</td><td><code>(key*reps)[:len]</code></td><td><code>kb[i % kb.length]</code></td></tr>
+  <tr><td>mod 256</td><td><code>&amp; 0xFF</code></td><td><code>&amp; 0xFF</code></td></tr>
+  <tr><td>تشفير/فكّ</td><td>دالتان منفصلتان</td><td>دالة واحدة بمُعامل <code>decrypt</code></td></tr>
+  <tr><td>تحويل النص</td><td><code>.encode("utf-8")</code></td><td><code>TextEncoder().encode()</code></td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s7"><span class="num">٧</span> كيف تتكامل مع HMAC والبروتوكول؟</h2>
+
+<p>فيجينير وحدها لا تكشف التعديل. لذا البروتوكول يلبّسها بـ HMAC بنمط <b>Encrypt-then-MAC</b>:</p>
+
+<pre><code><span class="cmt"># بايثون — protocol.py (الإرسال)</span>
+<span class="kw">if</span> integrity:
+    payload = payload + hmac_impl.hmac_sha256(keys[<span class="str">"mac"</span>], payload)
+    flags |= F_MAC</code></pre>
+
+<pre><code><span class="cmt">// جافاسكربت — webpages.py (الإرسال)</span>
+<span class="kw">let</span> body = <span class="fn">vigenereTransform</span>(plain, classicalKey, <span class="kw">false</span>);
+<span class="kw">let</span> flags = F_ENCRYPTED;
+<span class="kw">if</span> (integrity) { body = <span class="fn">concat</span>(body, <span class="kw">await</span> <span class="fn">hmacTag</span>(body)); flags |= F_MAC; }</code></pre>
+
+<div class="box key">
+  <h4>🧩 الترتيب الصحيح للطبقات</h4>
+  <div class="ascii">الإرسال:   نص → فيجينير → HMAC → إطار → شبكة
+الاستقبال: شبكة → إطار → تحقّق HMAC → فيجينير → نص</div>
+  نتحقّق من السلامة <b>قبل</b> فكّ التشفير — وهذا الأقوى أمنيًا.
+</div>
+
+<div class="box warn">
+  <h4>⚠️ مفاتيح منفصلة</h4>
+  مفتاح فيجينير (البشري) <b>منفصل</b> عن مفتاح HMAC المشتقّ من ECDH/HKDF. هذا مقصود:
+  لو اشتُقّ مفتاح فيجينير من HKDF لصار قويًا (256 بت) ولتعذّر كسره — فيموت الدرس التعليمي.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s8"><span class="num">٨</span> 🧪 تمرين عملي — اكسر المفتاح بنفسك</h2>
+
+<h3>التمرين 1: شاهد الاختلاف بين قيصر وفيجينير</h3>
+<pre><code><span class="cmt"># شغّل السيرفر بوضع فيجينير</span>
+CIPHER=VIGENERE bash run_local.sh
+
+<span class="cmt"># في طرفية أخرى، شغّل عميلًا وأرسل رسائل</span>
+python client.py --name ali
+<span class="cmt"># لاحظ في سجل السيرفر: المفتاح الكلاسيكي يُرسل في المصافحة (مقصود تعليميًا)</span></code></pre>
+
+<h3>التمرين 2: جرّب الدوال مباشرة في بايثون</h3>
+<pre><code><span class="kw">from</span> crypto <span class="kw">import</span> vigenere
+
+key = <span class="str">b"ahmed"</span>
+msg = <span class="str">"مرحبا بالعالم"</span>.encode(<span class="str">"utf-8"</span>)
+
+ct = vigenere.vigenere_encrypt(key, msg)
+pt = vigenere.vigenere_decrypt(key, ct)
+
+<span class="fn">print</span>(<span class="str">"المشفّر (hex):"</span>, ct.hex())
+<span class="fn">print</span>(<span class="str">"المُستعاد      :"</span>, pt.decode(<span class="str">"utf-8"</span>))
+<span class="fn">print</span>(<span class="str">"متطابق؟        :"</span>, pt == msg)</code></pre>
+
+<h3>التمرين 3: لاحظ الدورية (سبب الضعف)</h3>
+<p>شفّر نفس الرسالة بمفتاح قصير، وراقب أن المشفّر يعيد نمطه كل <code>len(key)</code> بايت —
+هذه الدورية هي ما يكشفه اختبار كاسيسكي.</p>
+
+<h3>التمرين 4: اكسر المفتاح يدويًا</h3>
+<p>افتح لوحة التحكم، اختر <code>VIGENERE</code>، وجرّب مفاتيح قصيرة (مثل <code>a</code>, <code>ab</code>, <code>ah</code>…).
+بما أن المفتاح قصير وبشري، يمكنك استنتاجه من تحليل النمط المتكرّر.</p>
+
+<div class="box key">
+  <h4>🎯 الهدف من التمرين</h4>
+  أن ترى <b>بعينك</b> لماذا فيجينير غير آمنة، ولماذا نستخدم AES في الحياة الحقيقية.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s9"><span class="num">٩</span> 📚 المراجع</h2>
+<ul>
+  <li><b>فيجينير (نظرة عامة):</b> <a href="https://en.wikipedia.org/wiki/Vigen%C3%A8re_cipher" target="_blank" rel="noopener">Vigenère cipher — Wikipedia</a> (المثال الكلاسيكي ATTACKATDAWN/LEMON).</li>
+  <li><b>شيفرة قيصر (الأساس):</b> <a href="https://en.wikipedia.org/wiki/Caesar_cipher" target="_blank" rel="noopener">Caesar cipher — Wikipedia</a>.</li>
+  <li><b>اختبار كاسيسكي:</b> <a href="https://en.wikipedia.org/wiki/Kasiski_examination" target="_blank" rel="noopener">Kasiski examination — Wikipedia</a>.</li>
+  <li><b>مؤشر التطابق:</b> <a href="https://en.wikipedia.org/wiki/Index_of_coincidence" target="_blank" rel="noopener">Index of coincidence — Wikipedia</a>.</li>
+  <li><b>معايير التشفير الحديثة:</b> NIST SP 800-38A (أوضاع AES) — <a href="https://nvlpubs.nist.gov/nistpubs/Legacy/sp/nistspecialpublication800-38a.pdf" target="_blank" rel="noopener">الرابط</a>.</li>
+</ul>
+
+<div class="footer">
+  جزء من مشروع <b>secure-chat</b> التعليمي. الكود غير مُدقّق أمنيًا — للتعلم فقط.
+</div>
+
+</div>
+</body>
+</html>

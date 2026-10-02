@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شرح المشروع خطوة بخطوة — سوكيت، AES-CBC، WebSocket، HMAC</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b22; --line:#30363d; --fg:#e6edf3; --mut:#8b949e;
+    --acc:#2f81f7; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --code:#0b0f14;
+    --syn:#a371f7;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:system-ui,"Segoe UI",Tahoma,Helvetica,Arial,sans-serif;
+    line-height:1.95; font-size:16px;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:32px 20px 80px;}
+  header.hero{
+    border:1px solid var(--line); background:linear-gradient(180deg,#161b22,#0d1117);
+    border-radius:18px; padding:30px 28px; margin-bottom:28px;
+  }
+  header.hero h1{margin:0 0 10px; font-size:26px; line-height:1.5;}
+  header.hero p{margin:0; color:var(--mut); font-size:15px;}
+  .badges{margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;}
+  .badge{font-size:12px; border:1px solid var(--line); background:#0d1117; color:var(--mut);
+         padding:4px 10px; border-radius:999px;}
+  nav.toc{
+    border:1px solid var(--line); background:var(--card); border-radius:14px;
+    padding:18px 22px; margin-bottom:32px;
+  }
+  nav.toc h2{margin:0 0 10px; font-size:16px; color:var(--fg);}
+  nav.toc ol{margin:0; padding-inline-start:22px;}
+  nav.toc a{color:var(--acc); text-decoration:none; font-size:14.5px;}
+  nav.toc a:hover{text-decoration:underline;}
+
+  h2.sec{
+    font-size:22px; margin:52px 0 8px; padding-bottom:12px;
+    border-bottom:2px solid var(--line); scroll-margin-top:20px;
+  }
+  h2.sec .num{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:34px; height:34px; border-radius:10px; background:var(--acc); color:#fff;
+    font-size:17px; margin-inline-end:10px; vertical-align:middle;
+  }
+  h3{font-size:18px; margin:30px 0 10px; color:#fff;}
+  h4{font-size:15.5px; margin:22px 0 8px; color:var(--acc);}
+  p{margin:12px 0;}
+  ul,ol{margin:12px 0; padding-inline-start:26px;}
+  li{margin:7px 0;}
+  code{
+    font-family:"JetBrains Mono",Consolas,Monaco,monospace;
+    background:#1c2128; border:1px solid var(--line); border-radius:6px;
+    padding:1px 6px; font-size:13.5px; direction:ltr; unicode-bidi:embed; display:inline-block;
+  }
+  .ref{font-size:13px; color:var(--mut);}
+
+  pre{
+    background:var(--code); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; overflow-x:auto; direction:ltr; text-align:left;
+    margin:14px 0; position:relative;
+  }
+  pre code{background:none; border:0; padding:0; font-size:13.5px; line-height:1.7; display:block; color:#e6edf3;}
+  .cmt{color:#8b949e;}     /* تعليق */
+  .kw{color:#ff7b72;}      /* كلمة مفتاحية */
+  .fn{color:#d2a8ff;}      /* دالة */
+  .str{color:#a5d6ff;}     /* نص */
+  .num{color:#79c0ff;}     /* رقم */
+
+  .box{border-radius:12px; padding:14px 18px; margin:16px 0; border:1px solid var(--line); background:var(--card);}
+  .box h4{margin:0 0 8px; font-size:15px;}
+  .key{border-color:#1f6feb; background:#0d1b2e;}
+  .key h4{color:#79c0ff;}
+  .warn{border-color:#9e6a03; background:#2b2308;}
+  .warn h4{color:#e3b341;}
+  .danger{border-color:#8b2c2c; background:#2d1114;}
+  .danger h4{color:#ff7b72;}
+  .syn{border-color:#8957e5; background:#1c1526;}
+  .syn h4{color:var(--syn);}
+  .syn .lbl{color:var(--syn); font-weight:700;}
+  .syn code{background:#241a33; border-color:#4b3673;}
+
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:start; vertical-align:top;}
+  th{background:#1c2128; color:#fff; font-weight:600;}
+  tr:nth-child(even) td{background:#12161c;}
+
+  .ascii{
+    background:var(--code); border:1px solid var(--line); border-radius:12px;
+    padding:16px; overflow-x:auto; direction:ltr; text-align:left;
+    font-family:Consolas,Monaco,monospace; font-size:13px; line-height:1.55; color:#79c0ff;
+    white-space:pre;
+  }
+  .footer{margin-top:60px; border-top:1px solid var(--line); padding-top:20px; color:var(--mut); font-size:13px;}
+  a{color:var(--acc);}
+  .tick{color:var(--ok); font-weight:700;}
+  .cross{color:var(--bad); font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🔐 شرح مشروع secure-chat — من الصفر، للمبتدئ</h1>
+  <p>أربعة مواضيع فقط: <b>السوكيت</b>، <b>تشفير AES-CBC</b>، <b>WebSocket</b>، <b>HMAC</b>.
+     كل سطر كود هنا مأخوذ من المشروع نفسه، وكل سِنْتاكس غريب مشروح في صندوق بنفسجي.</p>
+  <div class="badges">
+    <span class="badge">🐍 بايثون متوسط</span>
+    <span class="badge">📖 أسلوب معلّم</span>
+    <span class="badge">🧪 تجارب عملية</span>
+    <span class="badge">🔗 مراجع موثوقة</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>📑 محتويات الشرح</h2>
+  <ol>
+    <li><a href="#s0">قبل أن نبدأ — كيف تشغّل المشروع</a></li>
+    <li><a href="#s1">السوكيت (Socket) — الأنبوب بين الجهازين</a></li>
+    <li><a href="#s2">تشفير AES-CBC — الأقفال المربوطة بسلسلة</a></li>
+    <li><a href="#s3">WebSocket — النافذة التي يفتحها المتصفح</a></li>
+    <li><a href="#s4">HMAC — خاتم الشمع الذي يكشف التعديل</a></li>
+    <li><a href="#s5">كيف تتّصل الأجزاء الأربعة معًا</a></li>
+    <li><a href="#s6">🧪 معمل عملي — خمس تجارب</a></li>
+    <li><a href="#s7">📚 المراجع الرسمية</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s0"><span class="num">٠</span> قبل أن نبدأ — كيف تشغّل المشروع</h2>
+
+<p>حمّل المكتبات مرّة واحدة، ثم شغّل السيرفر. لا تحتاج إنترنت ولا حسابًا.</p>
+
+<pre><code><span class="cmt"># 1) ثبّت المكتبتين المطلوبتين فقط</span>
+pip install -r requirements.txt
+
+<span class="cmt"># 2) شغّل السيرفر (منفذ 5000، كلمة مرور محلية)</span>
+bash run_local.sh
+
+<span class="cmt"># 3) في طرفيّة ثانية: شغّل عميل بايثون</span>
+python client.py --name ali</code></pre>
+
+<div class="box key">
+  <h4>🗺️ خريطة الملفات الأربعة التي سنقرأها</h4>
+  <table>
+    <tr><th>الملف</th><th>الموضوع</th><th>الفكرة في سطر</th></tr>
+    <tr><td><code>server.py</code> / <code>transports.py</code> / <code>protocol.py</code></td><td>السوكيت</td><td>فتح القناة وقراءة الرسائل كاملة</td></tr>
+    <tr><td><code>crypto/aes_modes.py</code></td><td>AES-CBC</td><td>تشفير الكتل مع ربط تسلسلي</td></tr>
+    <tr><td><code>websocket.py</code></td><td>WebSocket</td><td>مصافحة HTTP ثم إطارات</td></tr>
+    <tr><td><code>crypto/hmac_impl.py</code></td><td>HMAC</td><td>بصمة بمفتاح تكشف التعديل</td></tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s1"><span class="num">١</span> السوكيت (Socket) — الأنبوب بين الجهازين</h2>
+
+<h3>الفكرة أولًا (قبل أي كود)</h3>
+<p>السوكيت هو <b>قناة بايتات</b> بين برنامجين عبر الشبكة. تخيّل أنبوب ماء بين بيتك وبيت جارك:
+تدفع ماءً من طرفك فيخرج من طرفه. لكن الأنبوب <b>لا يعرف أين تنتهي رسالة وأين تبدأ أخرى</b> —
+كل ما تراه هو تيّار بايتات متّصل.</p>
+
+<p>هذه حقيقة أساسية في TCP: هو <b>تيّار (stream)</b> وليس رسائل. لذلك قد:</p>
+<ul>
+  <li>تُرسل رسالة واحدة، فتصل على <b>دفعتين</b> صغيرتين.</li>
+  <li>تُرسل رسالتين، فتصلان <b>ملتصقتين</b> في قراءة واحدة.</li>
+</ul>
+
+<div class="box danger">
+  <h4>⚠️ الخطأ الشائع عند المبتدئين</h4>
+  الاعتقاد أن <code>recv()</code> تُعيد الرسالة كاملة. <b>لا تفعل ذلك أبدًا.</b>
+  الحل هو إضافة "طبقة تأطير" (Framing) نتّفق فيها على شكل الرسالة: نكتب طولها في البداية.
+</div>
+
+<h3>1) فتح السوكيت — <code>server.py</code></h3>
+<pre><code><span class="kw">import</span> socket
+
+srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  <span class="cmt"># TCP</span>
+srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="num">1</span>)
+srv.bind((config.HOST, config.PORT))    <span class="cmt"># نحجز منفذًا</span>
+srv.listen(<span class="num">32</span>)                        <span class="cmt"># نستمع</span>
+conn, addr = srv.accept()               <span class="cmt"># ننتظر اتصالًا واحدًا</span></code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>socket.AF_INET</code>: عائلة العنوان = <b>IPv4</b> (عناوين مثل 127.0.0.1).</li>
+    <li><code>socket.SOCK_STREAM</code>: نوع السوكيت = <b>TCP</b> (موثوق ومُرتَّب). لو كتبت <code>SOCK_DGRAM</code> صار UDP.</li>
+    <li><code>SO_REUSEADDR</code>: يسمح بإعادة استخدام المنفذ فورًا بعد إغلاق السيرفر (يمنع خطأ «Address already in use»).</li>
+    <li><code>listen(32)</code>: الرقم = حجم طابور الانتظار (عدد الاتصالات التي لم تُقبل بعد)، وليس عدد العملاء.</li>
+    <li><code>srv.accept()</code> <b>تُرجع زوجًا</b> <code>(conn, addr)</code> — سِنْتاكس «تفكيك المجموعة» (tuple unpacking): يوضع ناتج الدالة في متغيّرين معًا.</li>
+  </ul>
+</div>
+
+<h3>2) خدمة عدّة عملاء في الوقت نفسه — Threads</h3>
+<pre><code><span class="kw">import</span> threading
+
+conn, addr = srv.accept()
+threading.Thread(
+    target=_handle_connection, args=(conn, hub), daemon=<span class="kw">True</span>
+).start()</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>Thread(target=..., args=(...))</code>: نشغّل الدالة في <b>خيط تنفيذ منفصل</b> حتى لا يتجمّد السيرفر عند انتظار عميل.</li>
+    <li><code>args=(conn, hub)</code>: لاحظ <b>الفاصلة</b> — لأن بايثون لا تعتبر <code>(x)</code> مجموعة، بل <code>(x,)</code> بفاصلة.</li>
+    <li><code>daemon=True</code>: خيط «خَدوم» يُقتل تلقائيًا عند خروج البرنامج الرئيسي، فلا يعلّق التطبيق.</li>
+  </ul>
+</div>
+
+<h3>3) طبقة التأطير — <code>protocol.py</code></h3>
+<p>كل رسالة نغلّفها في «صندوق» رأسُه ثابت الحجم، وفيه <b>الطول</b>:</p>
+<div class="ascii">┌────────┬─────────┬──────┬───────┬──────────┬───────────────┐
+│ magic  │ version │ type │ flags │ reserved │ length        │  ← الرأس (12 بايت)
+│ "SCP1" │  1 byte │ 1 B  │  1 B  │   1 B    │ 4 bytes        │
+├────────┴─────────┴──────┴───────┴──────────┴───────────────┤
+│                    payload (بطول length)                     │  ← الحمولة
+└─────────────────────────────────────────────────────────────┘</div>
+
+<pre><code>HEADER = struct.Struct(<span class="str">"&gt;4sBBBBI"</span>)  <span class="cmt"># قالب الرأس</span>
+
+<span class="kw">def</span> <span class="fn">pack_frame</span>(ftype, payload=<span class="str">b""</span>, flags=<span class="num">0</span>):
+    <span class="kw">return</span> HEADER.pack(MAGIC, VERSION, ftype, flags, <span class="num">0</span>, <span class="fn">len</span>(payload)) + payload</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — <code>struct</code> و<code>b""</code></h4>
+  <ul>
+    <li><code>b"SCP1"</code>: نص <b>بايتات</b> (bytes) وليس نصًا عاديًا. البادئة <code>b</code> تعني: هذه بيانات خام، لا حروف يونيكود.</li>
+    <li><code>struct.Struct("&gt;4sBBBBI")</code>: قالب لتحويل أرقام إلى بايتات ثنائية. تفكيك الرموز:
+      <table>
+        <tr><th>الرمز</th><th>المعنى</th></tr>
+        <tr><td><code>&gt;</code></td><td>ترتيب البايتات <b>Big-endian</b> (الشبكة تستخدمه دائمًا).</td></tr>
+        <tr><td><code>4s</code></td><td>نص (bytes) بطول <b>4</b> بايت.</td></tr>
+        <tr><td><code>B</code></td><td>عدد صحيح غير سالب بطول <b>1</b> بايت (0..255).</td></tr>
+        <tr><td><code>I</code></td><td>عدد صحيح غير سالب بطول <b>4</b> بايت.</td></tr>
+      </table>
+      إذن الرأس = 4 + 1 + 1 + 1 + 1 + 4 = <b>12 بايت</b> بالضبط.
+    </li>
+    <li><code>HEADER.pack(...)</code> يحوّل الأرقام إلى بايتات جاهزة للإرسال. وعكسها <code>HEADER.unpack(bytes)</code> تُرجع مجموعة قيم.</li>
+  </ul>
+</div>
+
+<h3>4) قراءة الطول أولًا، ثم القراءة بالضبط — <code>transports.py</code></h3>
+<pre><code><span class="kw">def</span> <span class="fn">_recv_exact</span>(self, n):
+    buf = <span class="str">b""</span>
+    <span class="kw">while</span> <span class="fn">len</span>(buf) &lt; n:                 <span class="cmt"># TCP قد يجزّئ القراءة</span>
+        chunk = self.sock.recv(n - <span class="fn">len</span>(buf))
+        <span class="kw">if</span> <span class="kw">not</span> chunk:
+            <span class="kw">raise</span> <span class="fn">ConnectionError</span>(<span class="str">"انقطع اتصال TCP"</span>)
+        buf += chunk
+    <span class="kw">return</span> buf
+
+<span class="kw">def</span> <span class="fn">recv_frame</span>(self):
+    header = self._recv_exact(protocol.HEADER.size)   <span class="cmt"># اقرأ 12 بايت الرأس</span>
+    length = protocol.HEADER.unpack(header)[-<span class="num">1</span>]     <span class="cmt"># آخر قيمة = الطول</span>
+    payload = self._recv_exact(length) <span class="kw">if</span> length <span class="kw">else</span> <span class="str">b""</span>
+    <span class="kw">return</span> header + payload</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>buf = b""</code> ثم <code>buf += chunk</code>: نبني المُخزن تدريجيًا (bytes غير قابلة للتعديل، لذا إعادة الإسناد بـ <code>+=</code>).</li>
+    <li><code>recv(n - len(buf))</code>: نطلب فقط ما تبقّى <b>لا المزيد</b> — حتى لا نسرق بايتات من الرسالة التالية.</li>
+    <li><code>if not chunk</code>: في بايثون، المجموعة الفارغة <code>b""</code> تُعتبر <b>خطأ (False)</b>. لذا <code>not chunk</code> تعني «الاتصال أُغلق».</li>
+    <li><code>unpack(header)[-1]</code>: الفهرس <code>-1</code> = <b>العنصر الأخير</b> من المجموعة (وهو الطول هنا).</li>
+    <li><code>X if شرط else Y</code>: تعبير شرطي في سطر واحد (قيمة طولها صفر تعني لا حمولة).</li>
+    <li><code>HEADER.size</code>: خاصية تُعطي حجم القالب = 12، فلا نكتب الرقم يدويًا.</li>
+  </ul>
+</div>
+
+<div class="box key">
+  <h4>💡 الخلاصة — السوكيت</h4>
+  الأنبوب لا يحفظ حدود الرسائل. الحلّ: <b>رأس بطول ثابت + الطول في المقدّمة + حلقة قراءة حتى تكتمل</b>.
+  هذا بالضبط ما تفعله كل البروتوكولات الحقيقية (HTTP, TLS, WebSocket…).
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s2"><span class="num">٢</span> تشفير AES-CBC — الأقفال المربوطة بسلسلة</h2>
+
+<h3>ثابتة واحدة تشرح كل شيء</h3>
+<p>AES يقفل <b>كتلة واحدة فقط حجمها 16 بايت</b>. رسالتك أطول من ذلك، فنقسّمها إلى كتل.
+«وضع التشغيل» (Mode) هو القاعدة التي نحكم بها كيف نربط الكتل ونشفّرها. سيرة المشروع التعليمية:
+<b>ECB ← CBC ← CTR ← GCM</b>.</p>
+
+<h3>1) لا بد أن يكون الطول مضاعفًا لـ 16 — الحشو (PKCS#7)</h3>
+<pre><code>BLOCK = <span class="num">16</span>
+
+<span class="kw">def</span> <span class="fn">pad</span>(data):
+    n = BLOCK - (<span class="fn">len</span>(data) % BLOCK)      <span class="cmt"># كم بايت ينقص؟</span>
+    <span class="kw">return</span> data + <span class="fn">bytes</span>([n]) * n         <span class="cmt"># نكرر قيمة n، n مرات</span>
+
+<span class="kw">def</span> <span class="fn">unpad</span>(data):
+    n = data[-<span class="num">1</span>]                        <span class="cmt"># آخر بايت = عدد الحشو</span>
+    <span class="kw">return</span> data[:-n]</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>data + bytes([n]) * n</code>: <code>bytes([n])</code> يحوّل رقمًا واحدًا إلى بايت واحد. ثم <code>* n</code> = <b>تكرار</b> البايت n مرّات.</li>
+    <li>مثال عملي: النص <code>"hello"</code> طوله 5. إذن <code>n = 16 - (5 % 16) = 11</code>. النتيجة: نُضيف 11 بايت قيمة كل منها <code>0x0b</code> (أي الرقم 11). يصبح الطول 16.</li>
+    <li><code>data[:-n]</code>: تقطيع (slicing) يعني «من البداية حتى قبل آخر n بايت» — نحذف الحشو عند الفك.</li>
+  </ul>
+</div>
+
+<h3>2) عملية XOR — أساس كل الأوضاع</h3>
+<p>XOR (أو الحصرية) على مستوى البت: الناتج 1 فقط إذا اختلف البتّان. هي «متماثلة» —
+نفس العملية تُشفّر وتفكّ (<code>a ^ b ^ b = a</code>).</p>
+<pre><code><span class="kw">def</span> <span class="fn">xor</span>(a, b):
+    <span class="kw">return</span> <span class="fn">bytes</span>(x ^ y <span class="kw">for</span> x, y <span class="kw">in</span> <span class="fn">zip</span>(a, b))</code></pre>
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>^</code>: عملية XOR على البتات بين رقمين.</li>
+    <li><code>for x, y in zip(a, b)</code>: <code>zip</code> تدمج مجموعتين عنصرًا بعنصر: (a[0],b[0]), (a[1],b[1])…</li>
+    <li>الكامل <code>bytes(... for ...)</code> هو <b>تعبير مولّد</b> (generator expression) — يبني البايتات واحدًا واحدًا دون قائمة وسيطة.</li>
+  </ul>
+</div>
+
+<h3>3) المشكلة: ECB يكشف الأنماط 🔴</h3>
+<p>في ECB كل كتلة تُشفّر <b>بمفردها</b>. النتيجة: نفس النص = نفس المشفّر دائمًا. هذا سبب ظهور الصور الشهيرة كصور ظلّية عند تشفيرها بـ ECB.</p>
+<pre><code><span class="kw">def</span> <span class="fn">ecb_encrypt</span>(key, plaintext):
+    data = pad(plaintext)
+    <span class="kw">return</span> <span class="str">b""</span>.join(
+        _enc_block(key, data[i:i+BLOCK]) <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="num">0</span>, <span class="fn">len</span>(data), BLOCK)
+    )</code></pre>
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>data[i:i+BLOCK]</code>: نقطع 16 بايت تبدأ من الموضع i.</li>
+    <li><code>range(0, len(data), BLOCK)</code>: من 0 إلى الطول بـ <b>خطوة</b> 16 → مواضع الكتل (0, 16, 32…).</li>
+    <li><code>b"".join(...)</code>: يلصق كل الكتل المشفّرة في قيمة bytes واحدة.</li>
+  </ul>
+</div>
+
+<h3>4) الحل: CBC يربط كل كتلة بالسابقة 🟡</h3>
+<p>قبل تشفير كل كتلة، ندمجها بـ XOR مع <b>الكتلة المشفّرة السابقة</b>. أما الكتلة الأولى فتندمج مع
+<b>IV</b> (قيمة عشوائية). هكذا يختلف كل مشفّر حتى لو تكرّر النص.</p>
+
+<div class="ascii">CBC تشفير:
+  P1 ──XOR──► [AES] ──► C1 ──┐
+        ▲                     │
+       IV                     ▼
+  P2 ──XOR──► [AES] ──► C2 ──┐
+        ▲                     │
+       C1                     ▼
+  P3 ──XOR──► [AES] ──► C3
+        ▲
+       C2
+
+P = النص الأصلي،  C = المشفّر،  [AES] = محرّك التشفير</div>
+
+<pre><code><span class="kw">def</span> <span class="fn">cbc_encrypt</span>(key, plaintext, iv):
+    data = pad(plaintext)
+    out = <span class="fn">bytearray</span>()
+    prev = iv
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="num">0</span>, <span class="fn">len</span>(data), BLOCK):
+        block = xor(data[i:i+BLOCK], prev)   <span class="cmt"># اربط بالسابق</span>
+        prev = _enc_block(key, block)        <span class="cmt"># شفّر → يصبح "السابق"</span>
+        out += prev
+    <span class="kw">return</span> <span class="fn">bytes</span>(out)
+
+<span class="kw">def</span> <span class="fn">cbc_decrypt</span>(key, ciphertext, iv):
+    out = <span class="fn">bytearray</span>()
+    prev = iv
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="num">0</span>, <span class="fn">len</span>(ciphertext), BLOCK):
+        block = ciphertext[i:i+BLOCK]
+        out += xor(_dec_block(key, block), prev)  <span class="cmt"># فكّ ثم XOR مع السابق</span>
+        prev = block
+    <span class="kw">return</span> unpad(<span class="fn">bytes</span>(out))</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>out = bytearray()</code>: مثل bytes لكن <b>قابلة للتعديل</b>، لذا <code>out += ...</code> يعمل بكفاءة.</li>
+    <li><code>prev = iv</code>: متغيّر «الكتلة السابقة»، نحدّثه في كل دورة.</li>
+    <li>في <b>الفكّ</b>: الترتيب معكوس (<code>فكّ ثم XOR</code>)، و<code>prev = block</code> يحفظ المشفّر الأصلي (لا المفكوك).</li>
+    <li><code>_enc_block</code> البادئة <code>_</code>: اصطلاح في بايثون يعني «دالة داخلية، لا تُستدعى من خارج الملف».</li>
+  </ul>
+</div>
+
+<h3>5) IV — أهمّ قاعدة أمان</h3>
+<pre><code>iv = os.urandom(<span class="num">16</span>)                                 <span class="cmt"># عشوائي لكل رسالة</span>
+payload = iv + aes_modes.cbc_encrypt(key, plaintext, iv)   <span class="cmt"># نُرسل IV معها</span></code></pre>
+<div class="box warn">
+  <h4>⚠️ لماذا IV عشوائي دائمًا؟</h4>
+  <b>IV ليس سرًّا</b> (يمكن إرساله مع الرسالة)، لكنه <b>يجب ألا يتكرّر أبدًا</b> مع نفس المفتاح.
+  لو أعيد استخدام نفس (مفتاح/IV)، يُكشف النص. معيار <b>NIST SP 800-38A</b> نصّ صراحةً أن IV في CBC
+  يجب أن يكون <b>غير متوقّع (unpredictable)</b> — أي عشوائي من مولّد آمن مثل <code>os.urandom</code>.
+  <div class="ref">المرجع: NIST SP 800-38A §5.3 وما بعدها.</div>
+</div>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — <code>os.urandom(16)</code></h4>
+  تُرجع 16 بايت عشوائية من <b>مولّد أرقام آمن تشفيريًا</b> (يصلح للمفاتيح). لا تستخدم <code>random</code> العادية هنا أبدًا — فهي قابلة للتنبؤ.
+</div>
+
+<div class="box key">
+  <h4>💡 الخلاصة — AES-CBC</h4>
+  نقفل 16 بايت في كل مرة، ونربط كل كتلة بسابقتها عبر XOR. تغيير بايت واحد يُفسد كل الكتل بعده.
+  IV عشوائي لكل رسالة وغير سري.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s3"><span class="num">٣</span> WebSocket — النافذة التي يفتحها المتصفح</h2>
+
+<h3>لماذا نحتاجه أصلًا؟</h3>
+<p>المتصفح <b>لا يُسمح له</b> بفتح سوكيت TCP خام (لأسباب أمنية: يمنع صفحات الويب من مهاجمة أي خدمة في الجهاز).
+لكن يُسمح له بفتح <b>WebSocket</b>: وهو يبدأ كطلب HTTP عادي، ثم «يُرقّى» إلى قناة ثنائية الاتجاه دائمة.</p>
+
+<div class="box key">
+  <h4>🧭 خطوات المصافحة (RFC 6455)</h4>
+  <ol>
+    <li>المتصفح يرسل <code>GET</code> عاديًا مع ترويسة <code>Sec-WebSocket-Key: &lt;عشوائي&gt;</code>.</li>
+    <li>السيرفر يرد <code>101 Switching Protocols</code> مع <code>Sec-WebSocket-Accept</code> محسوبة.</li>
+    <li>بعدها يتحوّل الاتصال إلى إطارات ثنائية ثنائية الاتجاه (لا مزيد من HTTP).</li>
+  </ol>
+</div>
+
+<h3>1) حساب الرد — <code>websocket.py</code></h3>
+<pre><code>GUID = <span class="str">"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"</span>   <span class="cmt"># ثابت من RFC</span>
+
+<span class="kw">def</span> <span class="fn">accept_key</span>(key):
+    digest = hashlib.sha1((key + GUID).encode()).digest()
+    <span class="kw">return</span> base64.b64encode(digest).decode()</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>(key + GUID).encode()</code>: نلصق مفتاح المتصفح مع GUID السرّي، ثم نحوّله إلى بايتات (<code>encode</code>).</li>
+    <li><code>hashlib.sha1(...).digest()</code>: بصمة SHA-1 <b>خام</b> بصيغة بايتات (20 بايت).</li>
+    <li><code>base64.b64encode(...).decode()</code>: نحوّل البايتات إلى نص Base64 (حروف مقروءة).</li>
+    <li>هذا الثابت <code>GUID</code> موجود في RFC 6455 ولا يتغيّر — يمنع خداع الوسطاء.</li>
+  </ul>
+</div>
+
+<h3>2) الإطارات — أهمّ فرق: التقنيع (Masking)</h3>
+<p>كل رسالة تُرسل كـ «إطار». الإطار يبدأ ببايتين:</p>
+<div class="ascii">البايت 1:  FIN(1) | RSV(3) | opcode(4)
+البايت 2:  MASK(1) | length(7)
+
+  FIN    = 1 يعني "هذا آخر جزء"
+  opcode = 1 نص / 2 ثنائي / 8 إغلاق / 9 ping / 10 pong
+  MASK   = 1 يعني "الحمولة مُقنّعة" (إلزامي من المتصفح، ممنوع من السيرفر)
+  length = أقل من 126 = الطول الحقيقي
+           126 = الطول في البايتين التاليتين
+           127 = الطول في الثمانية التالية</div>
+
+<pre><code><span class="kw">def</span> <span class="fn">send</span>(self, opcode, payload=<span class="str">b""</span>):
+    header = <span class="fn">bytearray</span>([<span class="num">0x80</span> | opcode])  <span class="cmt"># 0x80 = FIN</span>
+    n = <span class="fn">len</span>(payload)
+    <span class="kw">if</span> n &lt; <span class="num">126</span>:
+        header.append(n)
+    <span class="kw">elif</span> n &lt; <span class="num">65536</span>:
+        header.append(<span class="num">126</span>)
+        header += struct.pack(<span class="str">"&gt;H"</span>, n)
+    <span class="kw">else</span>:
+        header.append(<span class="num">127</span>)
+        header += struct.pack(<span class="str">"&gt;Q"</span>, n)
+    self.sock.sendall(<span class="fn">bytes</span>(header) + payload)</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>0x80</code>: صيغة ست عشرية للعدد 128 (وحدته العليا = بت FIN).</li>
+    <li><code>0x80 | opcode</code>: <b>أو</b> البتّي يدمج البتات: نضع FIN في الأعلى والـ opcode في الأسفل.</li>
+    <li><code>bytearray([0x80 | opcode])</code>: ننشئ إطارًا قابلاً للتوسيع ثم <code>header.append(n)</code>.</li>
+    <li><code>struct.pack("&gt;H", n)</code>: <code>H</code> = عدد 2 بايت. و<code>&gt;Q</code> = عدد 8 بايت.</li>
+  </ul>
+</div>
+
+<h3>3) الاستقبال + فك التقنيع + التجزئة</h3>
+<pre><code>b1, b2 = recv_exact(self.sock, <span class="num">2</span>)
+fin     = b1 &amp; <span class="num">0x80</span>    <span class="cmt"># هل هو آخر جزء؟</span>
+op      = b1 &amp; <span class="num">0x0F</span>    <span class="cmt"># النوع</span>
+masked  = b2 &amp; <span class="num">0x80</span>    <span class="cmt"># هل مُقنّع؟</span>
+length  = b2 &amp; <span class="num">0x7F</span>    <span class="cmt"># الطول</span>
+...
+<span class="kw">if</span> mask:
+    data = <span class="fn">bytes</span>(c ^ mask[i % <span class="num">4</span>] <span class="kw">for</span> i, c <span class="kw">in</span> <span class="fn">enumerate</span>(data))
+<span class="kw">if</span> op == OP_PING:
+    self.send(OP_PONG, data)
+    <span class="kw">continue</span>
+payload += data
+<span class="kw">if</span> fin:
+    <span class="kw">return</span> opcode, payload</code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>b1 &amp; 0x80</code> (<b>و</b> البتّي): يبقي البت الأعلى فقط → 1 إذا كانت FIN مضبوطة.</li>
+    <li><code>b1 &amp; 0x0F</code>: يبقي البتات الأربع الدنيا فقط → رقم الـ opcode.</li>
+    <li><code>b2 &amp; 0x7F</code>: يحذف بت التقنيع ويبقي الطول (7 بتات = حتى 127).</li>
+    <li><code>c ^ mask[i % 4]</code>: التقنيع XOR بمفتاح من 4 بايت يتكرّر. <code>i % 4</code> يعيد الموضع 0..3.</li>
+    <li><code>for i, c in enumerate(data)</code>: <code>enumerate</code> تعطي (الموضع، العنصر) معًا.</li>
+    <li><code>continue</code>: نتخطّى بقيّة الحلقة (بعد ردّ pong) ونعود للقراءة.</li>
+  </ul>
+</div>
+
+<div class="box warn">
+  <h4>⚠️ التقنيع ليس تشفيرًا!</h4>
+  مفتاح التقنيع يسافر مع الإطار في الوضوح. الغرض منه فقط منع «تسميم الكاش» عبر الوسطاء (cache poisoning)،
+  <b>لا سرّية</b>. لهذا نحتاج تشفيرنا الخاص فوق WebSocket.
+  <div class="ref">المرجع: RFC 6455 §5.3 — «كل إطار من العميل إلى السيرفر يجب أن يكون مُقنّعًا، والعكس لا.»</div>
+</div>
+
+<h3>4) التجريد: نفس الشيء للمتصفح وبايثون — <code>transports.py</code></h3>
+<pre><code><span class="kw">class</span> <span class="fn">WSTransport</span>:
+    <span class="kw">def</span> <span class="fn">recv_frame</span>(self): <span class="kw">return</span> self.ws.recv_binary()
+    <span class="kw">def</span> <span class="fn">send_frame</span>(self, data): self.ws.send_binary(data)</code></pre>
+<div class="box key">
+  <h4>💡 فكرة معمارية مهمة</h4>
+  لدينا واجهتان متشابهتان: <code>RawTransport</code> (TCP خام) و<code>WSTransport</code> (WebSocket).
+  منطق الدردشة لا يعرف من أيّهما — يرى فقط <code>recv_frame/send_frame</code>. هذا يسمّى <b>تجريد الطبقة</b>، وهو سرّ نظافة المشروع.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s4"><span class="num">٤</span> HMAC — خاتم الشمع الذي يكشف التعديل</h2>
+
+<h3>الفرق الجوهري: HMAC ليس تشفيرًا</h3>
+<p>التشفير <b>يخفي</b> النص. HMAC <b>لا يخفيه</b> — النص يبقى مقروءًا. وظيفته ضمان <b>السلامة</b>
+(لم يُعدَّل) و<b>المصادقة</b> (المرسل يملك المفتاح المشترك).</p>
+
+<table>
+  <tr><th>المفهوم</th><th>الوظيفة</th><th>هل يخفي النص؟</th><th>هل يكشف التعديل؟</th></tr>
+  <tr><td>التشفير (AES)</td><td>السرّية</td><td class="tick">نعم</td><td class="cross">لا</td></tr>
+  <tr><td>HMAC</td><td>السلامة والمصادقة</td><td class="cross">لا</td><td class="tick">نعم</td></tr>
+</table>
+
+<h3>لماذا لا نستخدم <code>hash(key + message)</code> ببساطة؟</h3>
+<p>لأنّ دوال التجزئة مثل SHA-256 مبنية على بنية Merkle–Damgård، وهي عرضة لـ <b>هجوم امتداد الطول</b>
+(Length Extension): المهاجم يستطيع إطالة رسالتك وحساب بصمة صحيحة <b>دون معرفة المفتاح</b>.
+HMAC يحلّ ذلك ببنية <b>متداخلة</b> (hash داخل hash).</p>
+
+<h3>المعادلة (RFC 2104)</h3>
+<div class="ascii">HMAC(K, m) = H( (K ⊕ opad) ‖ H( (K ⊕ ipad) ‖ m ) )
+
+   H    = دالة التجزئة (SHA-256 هنا)
+   ⊕    = XOR
+   ‖    = لصق البايتات
+   ipad = 0x36 مكرّرة  (حشوة داخلية)
+   opad = 0x5C مكرّرة  (حشوة خارجية)</div>
+
+<pre><code>BLOCK_SIZE = <span class="num">64</span>   <span class="cmt"># حجم كتلة SHA-256</span>
+
+<span class="kw">def</span> <span class="fn">hmac_sha256</span>(key, message):
+    <span class="kw">if</span> <span class="fn">len</span>(key) &gt; BLOCK_SIZE:
+        key = _hash(key)                         <span class="cmt"># 1) جزّئ المفتاح الطويل</span>
+    key = key.ljust(BLOCK_SIZE, <span class="str">b"\x00"</span>)       <span class="cmt"># 2) اكمله بالأصفار</span>
+
+    ipad = <span class="fn">bytes</span>(b ^ <span class="num">0x36</span> <span class="kw">for</span> b <span class="kw">in</span> key)      <span class="cmt"># 3) الحشوتان</span>
+    opad = <span class="fn">bytes</span>(b ^ <span class="num">0x5C</span> <span class="kw">for</span> b <span class="kw">in</span> key)
+
+    inner = _hash(ipad + message)                <span class="cmt"># 4) التجزئة الداخلية</span>
+    <span class="kw">return</span> _hash(opad + inner)                   <span class="cmt"># 5) التجزئة الخارجية</span></code></pre>
+
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>key.ljust(64, b"\x00")</code>: يُكمل المفتاح على اليسار بالأصفار حتى 64 بايت.</li>
+    <li><code>b ^ 0x36 for b in key</code>: نطبّق XOR على كل بايت من المفتاح مع الثابت. <code>_hash</code> = <code>hashlib.sha256(...).digest()</code>.</li>
+    <li>البنية المتداخلة: الناتج الأول <code>inner</code> يدخل في التجزئة الثانية مع <code>opad</code> — وهذا ما يقتل هجوم امتداد الطول.</li>
+    <li><code>0x36</code> و<code>0x5C</code>: ثابتان اختِيرا لتباعدهما الكبير في البتات (Hamming distance).</li>
+  </ul>
+</div>
+
+<h3>التحقق — ولا نقارن بـ <code>==</code> أبدًا!</h3>
+<pre><code><span class="kw">def</span> <span class="fn">hmac_verify</span>(key, message, tag):
+    expected = hmac_sha256(key, message)
+    <span class="kw">import</span> hmac <span class="kw">as</span> _std
+    <span class="kw">return</span> _std.compare_digest(expected, tag)   <span class="cmt"># زمن ثابت!</span></code></pre>
+<div class="box danger">
+  <h4>🚨 هجوم التوقيت (Timing Attack)</h4>
+  لو استخدمت <code>==</code>، فبايثون يقارن بايتًا بايتًا و<b>يتوقّف عند أول اختلاف</b>.
+  يقيس المهاجم زمن الاستجابة ليعرف كم بايتًا كان صحيحًا، ويكتشف البصمة تدريجيًا.
+  <code>compare_digest</code> يقارن في <b>زمن ثابت</b> بغضّ النظر عن موضع الاختلاف.
+</div>
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — <code>import hmac as _std</code></h4>
+  نستورد وحدة بايثون القياسية <code>hmac</code> ونُعطها اسمًا مستعارًا <code>_std</code> لأنّ اسم ملفنا هو أيضًا hmac. البادئة <code>_</code> تعني «مؤقّت/داخلي». (نستفيد فقط من <code>compare_digest</code>؛ الحساب نفسه مكتوب من الصفر أعلاه.)
+</div>
+
+<h3>دمج HMAC مع التشفير — «Encrypt-then-MAC»</h3>
+<pre><code><span class="cmt"># عند الإرسال: شفّر أولًا، ثم احسب HMAC على النص المشفّر</span>
+<span class="kw">if</span> integrity:
+    payload = payload + hmac_impl.hmac_sha256(keys[<span class="str">"mac"</span>], payload)
+    flags |= F_MAC
+
+<span class="cmt"># عند الاستقبال: تحقّق أولًا، ثم افكّ</span>
+<span class="kw">if</span> flags &amp; F_MAC:
+    body, tag = payload[:-<span class="num">32</span>], payload[-<span class="num">32</span>:]
+    <span class="kw">if</span> <span class="kw">not</span> hmac_impl.hmac_verify(keys[<span class="str">"mac"</span>], body, tag):
+        <span class="kw">raise</span> <span class="fn">ValueError</span>(<span class="str">"HMAC: فشل التحقق — رُفضت البيانات المعدّلة!"</span>)</code></pre>
+<div class="box syn">
+  <h4>🔎 سِنْتاكس غريب — فكّه</h4>
+  <ul>
+    <li><code>payload[:-32]</code> = كل شيء <b>عدا آخر 32 بايت</b> (لأن بصمة SHA-256 = 32 بايت).</li>
+    <li><code>payload[-32:]</code> = آخر 32 بايت فقط (البصمة المرسلة).</li>
+    <li><code>flags |= F_MAC</code>: ضبط بت العلم (bit flag) ليعرف المستقبل أن هناك بصمة.</li>
+  </ul>
+</div>
+<div class="box key">
+  <h4>💡 لماذا هذا الترتيب بالذات؟</h4>
+  «Encrypt-then-MAC» هو الأقوى: نتحقّق من السلامة <b>قبل</b> أن نمرّر أي شيء لمفكّك التشفير،
+  فلا يستطيع المهاجم حتّى إرسال بيانات عشوائية للفك. ولا ننسى <b>فصل المفاتيح</b>: مفتاح للتشفير ومفتاح آخر للـ MAC (<code>crypto/kdf.py</code>).
+</div>
+
+<div class="box warn">
+  <h4>⚠️ تنبيه تعليمي</h4>
+  الكود هنا مكتوب <b>للتعلم فقط</b>، غير مُدقّق أمنيًا. في الإنتاج استخدم مكتبات معتمدة (مثل AES-GCM المدمج).
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s5"><span class="num">٥</span> كيف تتّصل الأجزاء الأربعة معًا</h2>
+
+<div class="ascii">[سوكيت TCP] ──┐
+              ├──► [طبقة التأطير: magic|len|payload] ──┐
+[WebSocket] ──┘   (نعرف حدود كل رسالة)                  │
+                                                         ▼
+                        ┌───────────────────────────────────────────┐
+                        │  المصافحة (hub.py):                        │
+                        │  ECDH P-256 → سرّ مشترك                     │
+                        │      │                                     │
+                        │      ▼                                     │
+                        │  HKDF → مفتاحان: enc + mac                 │
+                        └───────────────────────────────────────────┘
+                                             │
+                                             ▼
+                    [تشفير AES-CBC: IV + ciphertext]    ← السرّية
+                                             │
+                                             ▼
+                    [HMAC: Encrypt-then-MAC]            ← السلامة
+                                             │
+                                             ▼
+                              إرسال الإطار على الشبكة</div>
+
+<p>عند الإرسال ترتيب الطبقات: <b>تأطير → تشفير → (بصمة) → إرسال</b>.
+وعند الاستقبال العكس تمامًا: <b>قراءة الطول → التحقّق من البصمة → فكّ التشفير</b>.</p>
+
+<div class="box key">
+  <h4>💡 جملة واحدة تحفظها</h4>
+  السوكيت/WebSocket = <b>الطريق</b>. التأطير = <b>علبة مرقّمة</b>. AES-CBC = <b>القفل</b>. HMAC = <b>خاتم الشمع</b>.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s6"><span class="num">٦</span> 🧪 معمل عملي — خمس تجارب</h2>
+
+<h3>تجربة 1: شاهد التشفير يعمل</h3>
+<pre><code>bash run_local.sh                     <span class="cmt"># الطرفية 1</span>
+python client.py --name ali           <span class="cmt"># الطرفية 2</span>
+<span class="cmt"># أرسل رسالة وراقب سجل السيرفر: يعرض أول بايتات مشفّرة على الشبكة</span></code></pre>
+
+<h3>تجربة 2: أطفئ التشفير وراقب</h3>
+<pre><code>ENCRYPTION=0 bash run_local.sh
+<span class="cmt"># الآن النص واضح (لتفهم لماذا التشفير ضروري)</span></code></pre>
+
+<h3>تجربة 3: كشف أنماط ECB</h3>
+<pre><code>CIPHER=AES-ECB bash run_local.sh
+<span class="cmt"># أرسل نفس الرسالة مرّتين: لاحظ أن المشفّر يتكرّر (هذه خطورة ECB)</span>
+<span class="cmt"># ثم جرّب: CIPHER=AES-CBC — ستجد المشفّر مختلفًا في كل مرة</span></code></pre>
+
+<h3>تجربة 4: عطّل السلامة ثم عدّل الرسالة (MITM)</h3>
+<pre><code>INTEGRITY=0 bash run_local.sh
+<span class="cmt"># في طرفية ثالثة: شغّل أداة رجل في المنتصف</span>
+python tools/mitm.py --listen 6000 --target 5000 --tamper</code></pre>
+<p>مع <code>INTEGRITY=1</code> سيُرفَض التعديل. مع <code>INTEGRITY=0</code> سيمرّ دون كشف — هذا درس HMAC عمليًا.</p>
+
+<h3>تجربة 5: شغّل الاختبارات الذاتية (35 اختبارًا)</h3>
+<pre><code>python selftest.py
+bash check_modes.sh     <span class="cmt"># يفحص كل أوضاع التشفير طرفًا لطرف</span></code></pre>
+
+<!-- ============================================================ -->
+<h2 class="sec" id="s7"><span class="num">٧</span> 📚 المراجع الرسمية</h2>
+<ul>
+  <li><b>WebSocket:</b> RFC 6455 — <a href="https://datatracker.ietf.org/doc/html/rfc6455" target="_blank" rel="noopener">The WebSocket Protocol</a> (المصافحة §4، التقنيع §5.3).</li>
+  <li><b>HMAC:</b> RFC 2104 — <a href="https://datatracker.ietf.org/doc/html/rfc2104" target="_blank" rel="noopener">Keyed-Hashing for Message Authentication</a>؛ و FIPS 198-1.</li>
+  <li><b>AES-CBC و IV:</b> NIST SP 800-38A — <a href="https://nvlpubs.nist.gov/nistpubs/Legacy/sp/nistspecialpublication800-38a.pdf" target="_blank" rel="noopener">Recommendation for Block Cipher Modes of Operation</a> (§5.3 عن IV).</li>
+  <li><b>سوكيت بايثون:</b> التوثيق الرسمي — <a href="https://docs.python.org/3/library/socket.html" target="_blank" rel="noopener">socket — Low-level networking interface</a>.</li>
+  <li><b>التأطير (Framing):</b> Real Python — <a href="https://realpython.com/python-sockets/" target="_blank" rel="noopener">Socket Programming in Python</a>.</li>
+  <li><b>هجوم التوقيت:</b> توثيق <code>hmac.compare_digest</code> — <a href="https://docs.python.org/3/library/hmac.html" target="_blank" rel="noopener">hmac — Keyed-Hashing for Message Authentication</a>.</li>
+</ul>
+
+<div class="footer">
+  هذا الملف جزء من مشروع <b>secure-chat</b> التعليمي (فرع <code>main</code>).
+  كُتب كمرجع تعلّمي — الكود غير مُدقّق أمنيًا ولا يصلح للإنتاج.
+</div>
+
+</div>
+</body>
+</html>
