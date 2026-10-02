@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+crypto/server_identity.key
+crypto/server_identity.pub
+.venv/
+venv/
+*.log
+s1.log
+s2.log
+m1.log
+m2.log
