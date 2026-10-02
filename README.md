@@ -77,17 +77,27 @@ secure-chat/
 
 ## 🚀 التشغيل
 
+> 📖 **دليل التشغيل المحلي الكامل (ويندوز/ماك/لينكس، بلا تكاليف):**
+> [`docs/RUN_LOCAL_AR.md`](docs/RUN_LOCAL_AR.md)
+
 ### 1) التثبيت
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt    # ~20 م.ب مرة واحدة، ثم بلا إنترنت
 ```
 
 ### 2) تشغيل السيرفر
 
 ```bash
-python server.py            # المنفذ الافتراضي 5000
-python server.py --port 8000
+bash run_local.sh                   # الأسهل: يضبط المنفذ وكلمة المرور ويطبع الروابط
+```
+
+أو يدوياً:
+```bash
+ADMIN_PASSWORD='كلمة-قوية' python server.py            # المنفذ الافتراضي 5000
+ADMIN_PASSWORD='كلمة-قوية' python server.py --port 8000
 ```
 
 عند التشغيل ستظهر لك عناوين:
