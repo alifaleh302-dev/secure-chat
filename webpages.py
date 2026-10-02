@@ -305,7 +305,8 @@ async function send() {
   } else {
     ws.send(frame(T_MESSAGE, plain, 0));
   }
-  log(`${myName}: ${text}`, "me");
+  // لا نعرضها محلياً: السيرفر يعيد بثّها لكل المتصلين (بمن فيهم المرسل)،
+  // فعرضها هنا أيضاً كان يجعلها تظهر مرتين.
 }
 
 document.getElementById("send").onclick = send;

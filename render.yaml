@@ -6,10 +6,15 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /settings
+    healthCheckPath: /chat
     envVars:
       - key: HOST
         value: 0.0.0.0
+      # كلمة مرور لوحة التحكم (/settings و /api/*). بدونها يولّد السيرفر
+      # كلمة عشوائية عند كل تشغيل — وهو ما يجعل اللوحة غير قابلة للوصول عملياً.
+      # اضبطها من لوحة Render (Environment) بعد إنشاء الخدمة.
+      - key: ADMIN_PASSWORD
+        sync: false
       # مفاتيح التبديل التعليمية (يمكن تغييرها من لوحة التحكم أثناء التشغيل)
       - key: ENCRYPTION
         value: "1"

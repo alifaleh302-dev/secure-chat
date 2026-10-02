@@ -7,6 +7,14 @@ PORT="${PORT:-12000}"
 HOST_BIND="${HOST_BIND:-127.0.0.1}"
 LOG_DIR="${LOG_DIR:-/tmp}"
 
+# كلمة مرور لوحة التحكم (/settings و /api/*). إن لم تُضبط، يولّد السيرفر
+# كلمة عشوائية ويطبعها في السجل.
+if [ -z "${ADMIN_PASSWORD:-}" ]; then
+  ADMIN_PASSWORD="$(python -c 'import secrets;print(secrets.token_urlsafe(9))')"
+  echo "[i] كلمة مرور لوحة التحكم لهذه الجلسة: $ADMIN_PASSWORD"
+fi
+export ADMIN_PASSWORD
+
 if ! command -v cloudflared >/dev/null 2>&1; then
   echo "[!] cloudflared غير مثبّت. ثبّته أولاً:" >&2
   echo "    curl -sL -o /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb" >&2
@@ -21,7 +29,7 @@ setsid nohup python -u server.py --host "$HOST_BIND" --port "$PORT" \
   > "$LOG_DIR/secure-chat.log" 2>&1 < /dev/null &
 sleep 4
 
-if ! curl -s -m 5 -o /dev/null "http://127.0.0.1:$PORT/settings"; then
+if ! curl -s -m 5 -o /dev/null "http://127.0.0.1:$PORT/chat"; then
   echo "[!] السيرفر لم يستجب. راجع السجل: $LOG_DIR/secure-chat.log" >&2
   tail -20 "$LOG_DIR/secure-chat.log" >&2
   exit 1

@@ -9,6 +9,7 @@ Wireshark وترى الفرق فوراً.
 """
 
 import os
+import secrets
 
 
 def _flag(name: str, default: bool) -> bool:
@@ -61,7 +62,22 @@ AUTHENTICATION = _flag("AUTHENTICATION", True)
 KEY_EXCHANGE = _text("KEY_EXCHANGE", "ECDH")
 
 # ============================================================
-# 5) إعدادات الشبكة
+# 5) حماية لوحة التحكم — Control plane
+# ============================================================
+# صفحة /settings وكل /api/* محمية بمصادقة HTTP Basic، لأن من يصل إليها
+# يستطيع إطفاء التشفير أو تبديل الوضع إلى ECB — أي إبطال كل الأمان.
+# أما /chat فتبقى عامة (هي الدردشة نفسها).
+#
+# إن لم تضبط ADMIN_PASSWORD، يُولَّد سرّ عشوائي عند كل تشغيل ويُطبع في سجل
+# السيرفر. اضبطه في الإنتاج ليكون ثابتاً:
+#     ADMIN_PASSWORD='كلمة-قوية' python server.py
+ADMIN_USER = _text("ADMIN_USER", "admin")
+_ADMIN_PW_FROM_ENV = os.environ.get("ADMIN_PASSWORD", "").strip()
+ADMIN_PASSWORD_GENERATED = not _ADMIN_PW_FROM_ENV
+ADMIN_PASSWORD = _ADMIN_PW_FROM_ENV or secrets.token_urlsafe(12)
+
+# ============================================================
+# 6) إعدادات الشبكة
 # ============================================================
 HOST = _text("HOST", "0.0.0.0")
 PORT = int(_text("PORT", "5000"))          # منفذ الدردشة (TCP خام + WebSocket)
@@ -113,6 +129,7 @@ def describe() -> str:
         f"  السلامة (INTEGRITY)       : {'ON ' if INTEGRITY else 'OFF'}  [{MAC_MODE}]",
         f"  المصادقة (AUTHENTICATION) : {'ON ' if AUTHENTICATION else 'OFF'}",
         f"  تبادل المفاتيح            : {KEY_EXCHANGE}",
+        f"  لوحة التحكم               : محمية (المستخدم: {ADMIN_USER})",
         "=" * 56,
     ]
     return "\n".join(lines)

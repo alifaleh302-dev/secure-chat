@@ -78,7 +78,7 @@ body=$(cat <<JSON
     "env": "docker",
     "plan": "free",
     "region": "oregon",
-    "healthCheckPath": "/settings",
+    "healthCheckPath": "/chat",
     "envSpecificDetails": {"dockerfilePath": "./Dockerfile"}
   }
 }

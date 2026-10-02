@@ -56,24 +56,32 @@ def _handle_http(conn: socket.socket, hub: ChatHub) -> None:
 
     # طلب HTTP عادي: صفحات الويب وواجهات API
     content_length = 0
-    for line in text.split("\r\n"):
-        if line.lower().startswith("content-length:"):
-            content_length = int(line.split(":", 1)[1].strip())
+    headers: dict[str, str] = {}
+    head_text, _, rest = text.partition("\r\n\r\n")
+    for line in head_text.split("\r\n")[1:]:
+        name, sep, value = line.partition(":")
+        if sep:
+            headers[name.strip().lower()] = value.strip()
+    if "content-length" in headers:
+        content_length = int(headers["content-length"])
     body = b""
     if content_length:
-        body = request.split(b"\r\n\r\n", 1)[-1]
+        body = rest.encode("latin-1")
         while len(body) < content_length:
             body += conn.recv(content_length - len(body))
 
-    status, ctype, payload = webui.route(method, path, body, hub)
-    reason = {200: "OK", 400: "Bad Request", 404: "Not Found"}.get(status, "OK")
+    status, ctype, payload, extra = webui.route(method, path, body, hub, headers)
+    reason = {200: "OK", 400: "Bad Request", 401: "Unauthorized",
+              404: "Not Found"}.get(status, "OK")
     response = (
         f"HTTP/1.1 {status} {reason}\r\n"
         f"Content-Type: {ctype}\r\n"
         f"Content-Length: {len(payload)}\r\n"
-        "Connection: close\r\n\r\n"
-    ).encode() + payload
-    conn.sendall(response)
+    )
+    for name, value in extra.items():
+        response += f"{name}: {value}\r\n"
+    response += "Connection: close\r\n\r\n"
+    conn.sendall(response.encode() + payload)
     conn.close()
 
 
@@ -126,6 +134,9 @@ def main() -> None:
     config.HOST = args.host
 
     print(config.describe())
+    if config.ADMIN_PASSWORD_GENERATED:
+        print(f"[*] كلمة مرور لوحة التحكم (مؤقتة لهذه الجلسة): {config.ADMIN_PASSWORD}")
+        print("    اضبط ADMIN_PASSWORD لتثبيتها بين التشغيلات.")
 
     hub = ChatHub()
     try:
