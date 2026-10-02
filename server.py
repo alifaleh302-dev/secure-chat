@@ -108,20 +108,31 @@ def _handle_connection(conn: socket.socket, hub: ChatHub) -> None:
             pass
 
 
-def run_chat_server(hub: ChatHub) -> None:
+def run_chat_server(hub: ChatHub, stop_event=None, on_bound=None) -> None:
+    """يخدم الاتصالات حتى الإيقاف.
+
+    stop_event: threading.Event اختياري لإيقاف الحلقة (للواجهة الرسومية).
+    on_bound:   callback اختياري يُستدعى بعد bind لمشاركة المقبس (للإيقاف).
+    """
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind((config.HOST, config.PORT))
     srv.listen(32)
+    if on_bound:
+        on_bound(srv)
     print(f"[*] السيرفر يعمل على المنفذ {config.PORT}")
     print(f"    - لوحة التحكم : http://localhost:{config.PORT}/settings")
     print(f"    - دردشة المتصفح: http://localhost:{config.PORT}/chat")
     print(f"    - عميل بايثون : python client.py")
-    while True:
-        conn, addr = srv.accept()
+    while not (stop_event and stop_event.is_set()):
+        try:
+            conn, addr = srv.accept()
+        except OSError:
+            break
         threading.Thread(
             target=_handle_connection, args=(conn, hub), daemon=True
         ).start()
+    srv.close()
 
 
 def main() -> None:

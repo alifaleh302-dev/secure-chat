@@ -22,7 +22,7 @@ from transports import RawTransport
 
 
 class ChatClient:
-    def __init__(self, host, port, name, mode="python"):
+    def __init__(self, host, port, name, mode="python", on_message=None):
         self.host, self.port, self.name, self.mode = host, port, name, mode
         self.sock = None
         self.transport = None
@@ -30,6 +30,13 @@ class ChatClient:
         self.cipher = config.CIPHER
         self.encryption = config.ENCRYPTION
         self.integrity = config.INTEGRITY
+        # callback اختياري للواجهات الرسومية: on_message(kind, text)
+        # kind ∈ {"system", "chat", "error", "info"}
+        self.on_message = on_message
+
+    def _emit(self, kind: str, text: str):
+        if self.on_message:
+            self.on_message(kind, text)
 
     # ---------- المصافحة ----------
     def connect(self):
@@ -68,10 +75,12 @@ class ChatClient:
             transcript = pub + server_pub + bytes([protocol.CIPHER_CODES[self.cipher]])
             ok = auth.verify(identity, bytes.fromhex(ack["sig"]), transcript)
             print(f"[*] التحقق من توقيع السيرفر: {'✅ نجح' if ok else '❌ فشل!'}")
+            self._emit("info", f"توقيع السيرفر: {'✅ نجح' if ok else '❌ فشل'}")
             if not ok and config.AUTHENTICATION:
                 raise SystemExit("[!] توقيع السيرفر غير صالح — إيقاف")
         else:
             print("[*] المصادقة مطفأة — لا نتحقق من هوية السيرفر")
+            self._emit("info", "المصادقة مطفأة — لا تحقق من الهوية")
 
         # 3) اشتقاق المفاتيح
         if config.KEY_EXCHANGE == "HARDCODED":
@@ -94,6 +103,7 @@ class ChatClient:
 
                 if ftype == protocol.T_SYSTEM:
                     print(f"\r{payload.decode('utf-8')}")
+                    self._emit("system", payload.decode("utf-8"))
 
                 elif ftype == protocol.T_MESSAGE:
                     try:
@@ -102,9 +112,11 @@ class ChatClient:
                         )
                     except ValueError as exc:
                         print(f"\r[!] {exc}")
+                        self._emit("error", str(exc))
                         continue
                     msg = json.loads(plain.decode())
                     print(f"\r[{msg['name']}] {msg['text']}")
+                    self._emit("chat", f"{msg['name']}: {msg['text']}")
 
                 elif ftype == protocol.T_BYE:
                     break

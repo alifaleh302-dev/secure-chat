@@ -2,15 +2,17 @@
 
 ## نظرة عامة
 مشروع تعليمي (الأمن السيبراني): دردشة آمنة بـ **Python + socket**.
-كل الخوارزميات مكتوبة **من الصفر** (تعليمي): RC4، HMAC-SHA256،
-AES-ECB/CBC/CTR/GCM (+GHASH). `pycryptodome` يُستخدم فقط كمحرك AES خام في
-الاختبارات للمقارنة — لا في مسار التشغيل.
+كل الخوارزميات مكتوبة **من الصفر** (تعليمي): RC4، فيجينير الكلاسيكية،
+HMAC-SHA256، AES-ECB/CBC/CTR/GCM (+GHASH). `pycryptodome` يُستخدم فقط
+كمحرك AES خام في الاختبارات للمقارنة — لا في مسار التشغيل.
 
 ## الأوامر
 ```bash
 python server.py [--port 5000]   # سيرفر بمنفذ واحد (HTTP + WebSocket + TCP خام)
 python client.py --name ali      # عميل بايثون (TCP خام)
-python selftest.py               # 27 اختبار خوارزميات (مطابقة للمعايير)
+python server_gui.py             # واجهة إدارة الخادم (tkinter)
+python client_gui.py             # واجهة العميل (tkinter)
+python selftest.py               # 35 اختبار خوارزميات (مطابقة للمعايير)
 bash run_tests.sh                # كل الاختبارات (selftest + integration + browser + HTTP)
 bash check_modes.sh              # التحقق من كل أوضاع التشفير طرفاً لطرف
 python tools/mitm.py --listen 6000 --target 5000 --tamper   # أداة MITM
@@ -23,10 +25,16 @@ python tools/mitm.py --listen 6000 --target 5000 --tamper   # أداة MITM
 - **السيرفر مصدر الحقيقة**: `HELLO_ACK` يحمل `cipher` و`encryption` و
   `integrity` و`authenticated`. العميل يلتزم بها، لذا التبديل من لوحة التحكم
   يؤثر على الاتصالات الجديدة (بايثون والمتصفح معاً).
-- **المتصفح**: Web Crypto API فقط — ECDH P-256 + HKDF-SHA256 + AES-GCM.
-  مصافحة WebSocket (RFC 6455) مكتوبة يدوياً في `websocket.py`.
+- **المتصفح**: Web Crypto API (AES-GCM) + فيجينير بجافاسكربت + HMAC-SHA256
+  (`crypto.subtle.sign("HMAC", ...)`). مصافحة WebSocket (RFC 6455) مكتوبة يدوياً.
+  المتصفح يدعم فقط `{"AES-GCM", "VIGENERE"}`؛ أي وضع آخر يُرقّى إلى AES-GCM في `hub.register`.
 - **التشفير**: `protocol.encrypt_message/decrypt_message` توزّع حسب الوضع.
   Encrypt-then-MAC: HMAC على النص المشفّر كاملاً.
+- **الشيفرات الكلاسيكية (فيجينير)**: تعمل على **البايتات (mod 256)** لا `A-Z`،
+  لتحمي النص العربي/UTF-8. مفتاحها `config.CLASSICAL_KEY` (بشري، افتراضي `ahmed`)
+  **منفصل عن مفاتيح HKDF** عن قصد ليبقى قابلاً للكسر، ويُرسل في `HELLO_ACK`
+  (`classical_key`) ليستخدمه العميل/المتصفح. `crypto/vigenere.py` بايثون +
+  `vigenereTransform` في `webpages.py` — **متطابقان بايتياً** (مُتحقَّق منه).
 - **GCM**: عدّاد CTR في GCM **4 بايت (32-bit)** — خطأ شائع يفسد الـ tag.
 - **مفتاح P-256 الخاص**: يُصدَّر بـ `private_numbers().private_value`.
 
