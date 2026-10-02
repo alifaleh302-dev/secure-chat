@@ -117,6 +117,47 @@ def test_protocol():
     check("AES-GCM: دورة كاملة", protocol.decrypt_message(keys, "AES-GCM", True, payload, flags) == pt)
 
 
+def test_vigenere():
+    print("\n[7] فيجينير (شيفرة كلاسيكية — للتعليم فقط)")
+    from crypto import vigenere
+    import config
+    import protocol
+
+    key = b"ahmed"
+    msg = "مرحبا بالعالم hello".encode("utf-8")
+    ct = vigenere.vigenere_encrypt(key, msg)
+    check("فيجينير: التشفير يغيّر البيانات", ct != msg)
+    check("فيجينير: فك التشفير يستعيد الأصل", vigenere.vigenere_decrypt(key, ct) == msg)
+
+    # المفتاح نفسه على نفس الحرف → نفس الإزاحة (أساس تحليل التكرار)
+    a = vigenere.vigenere_encrypt(b"ahmed", b"AAAAA")
+    b = vigenere.vigenere_encrypt(b"ahmed", b"AAAAA")
+    check("فيجينير: دورية المفتاح (نفس المدخل → نفس المخرج)", a == b)
+    check("فيجينير: طول الإزاحة = طول المفتاح", len(set(a)) == len(key))
+
+    # عبر البروتوكول + HMAC
+    config.CIPHER, config.CLASSICAL_KEY = "VIGENERE", "ahmed"
+    keys = kdf.derive_keys(b"shared", b"salt")
+    payload, flags = protocol.encrypt_message(keys, "VIGENERE", True, msg)
+    check("VIGENERE + HMAC: دورة كاملة",
+          protocol.decrypt_message(keys, "VIGENERE", True, payload, flags) == msg)
+    check("VIGENERE: العلم يحتوي تشفير + MAC", flags == (protocol.F_ENCRYPTED | protocol.F_MAC))
+
+    tampered = bytearray(payload)
+    tampered[0] ^= 0xFF
+    try:
+        protocol.decrypt_message(keys, "VIGENERE", True, bytes(tampered), flags)
+        check("VIGENERE: يكشف التعديل", False)
+    except ValueError:
+        check("VIGENERE: يكشف التعديل", True)
+
+    # مفتاح خاطئ → فك تشفير خطأ (لا يساوي الأصل)
+    config.CLASSICAL_KEY = "wrong"
+    check("VIGENERE: مفتاح خاطئ لا يستعيد النص",
+          protocol.decrypt_message(keys, "VIGENERE", True, payload, flags) != msg)
+    config.CLASSICAL_KEY = "ahmed"
+
+
 def main():
     print("=" * 56)
     print("  اختبار ذاتي — التحقق من الخوارزميات المكتوبة من الصفر")
@@ -127,6 +168,7 @@ def main():
     test_ecdh()
     test_kdf()
     test_protocol()
+    test_vigenere()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)

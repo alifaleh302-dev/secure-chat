@@ -53,6 +53,12 @@ class ChatClient:
         # السيرفر هو مصدر الحقيقة: يخبر العميل بالإعدادات الفعّالة
         self.encryption = ack.get("encryption", True)
         self.integrity = ack.get("integrity", True)
+        # الشيفرات الكلاسيكية: نأخذ المفتاح البشري من السيرفر
+        if ack.get("classical_key"):
+            config.CLASSICAL_KEY = ack["classical_key"]
+        # نُحدّث الإعداد المحلي ليعكس ما تفاوضنا عليه فعلاً (للعرض الصحيح)
+        config.CIPHER = self.cipher
+        config.INTEGRITY = self.integrity
 
         if ack["authenticated"]:
             pinned = auth.load_pinned_public()

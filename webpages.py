@@ -142,8 +142,11 @@ SETTINGS_HTML = r"""<!DOCTYPE html>
     <div class="row"><span>وضع التشفير</span>
       <select id="CIPHER">
         <option>RC4</option><option>AES-ECB</option><option>AES-CBC</option>
-        <option>AES-CTR</option><option>AES-GCM</option>
+        <option>AES-CTR</option><option>AES-GCM</option><option>VIGENERE</option>
       </select></div>
+
+    <div class="row"><span>مفتاح فيجينير</span>
+      <input type="text" id="CLASSICAL_KEY" value="ahmed" style="max-width:120px"></div>
 
     <div class="row"><span>السلامة (كشف التعديل)</span>
       <label class="sw"><input type="checkbox" id="INTEGRITY"><span class="sl"></span></label></div>
@@ -174,7 +177,7 @@ SETTINGS_HTML = r"""<!DOCTYPE html>
 </div>
 
 <script>
-const KEYS = ["ENCRYPTION","CIPHER","INTEGRITY","MAC_MODE","AUTHENTICATION","KEY_EXCHANGE"];
+const KEYS = ["ENCRYPTION","CIPHER","INTEGRITY","MAC_MODE","AUTHENTICATION","KEY_EXCHANGE","CLASSICAL_KEY"];
 const BOOLS = ["ENCRYPTION","INTEGRITY","AUTHENTICATION"];
 
 async function load() {
@@ -255,12 +258,30 @@ CHAT_HTML = r"""<!DOCTYPE html>
 <script>
 const MAGIC = new Uint8Array([0x53,0x43,0x50,0x31]); // "SCP1"
 const T_HELLO=1, T_HELLO_ACK=2, T_MESSAGE=3, T_SYSTEM=5;
-const F_ENCRYPTED=1, F_GCM=4;
-const CIPHER_CODES = {NONE:0, RC4:1, "AES-ECB":2, "AES-CBC":3, "AES-CTR":4, "AES-GCM":5};
+const F_ENCRYPTED=1, F_MAC=2, F_GCM=4;
+const CIPHER_CODES = {NONE:0, RC4:1, "AES-ECB":2, "AES-CBC":3, "AES-CTR":4, "AES-GCM":5, VIGENERE:6};
 
-let ws, encKey, myName, useEnc = true;
+let ws, encKey, macKey, myName, useEnc = true, integrity = true, cipherMode = "AES-GCM", classicalKey = "ahmed";
 const logEl = document.getElementById("log");
 const statusEl = document.getElementById("status");
+
+// ---------- فيجينير على البايتات (mod 256) — نفس منطق بايثون ----------
+function vigenereTransform(data, key, decrypt) {
+  const kb = new TextEncoder().encode(key);
+  if (!kb.length) throw new Error("مفتاح فيجينير فارغ");
+  const out = new Uint8Array(data.length);
+  for (let i = 0; i < data.length; i++) {
+    const k = kb[i % kb.length];
+    out[i] = decrypt ? (data[i] - k) & 0xFF : (data[i] + k) & 0xFF;
+  }
+  return out;
+}
+
+// ---------- HMAC-SHA256 عبر Web Crypto ----------
+async function hmacTag(data) {
+  const sig = await crypto.subtle.sign("HMAC", macKey, data);
+  return new Uint8Array(sig);
+}
 
 function log(text, cls) {
   const d = document.createElement("div");
@@ -299,6 +320,13 @@ function concat(a, b) {
   return out;
 }
 
+function equalBytes(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
 async function start() {
   myName = prompt("اسمك؟", "browser-user") || "browser-user";
 
@@ -333,12 +361,22 @@ async function start() {
       // 3) salt = SHA-256(clientPub ‖ serverPub) — مطابق للسيرفر
       const salt = await sha256(concat(myPub, serverPub));
 
-      // 4) HKDF: نشتقّ مفتاح التشفير (والسلامة ضمن GCM)
+      // 4) HKDF: نشتقّ مفتاح التشفير ومفتاح السلامة (HMAC) بشكل منفصل
       const base = await crypto.subtle.importKey("raw", shared, "HKDF", false, ["deriveBits"]);
       encKey = await crypto.subtle.importKey(
         "raw", await crypto.subtle.deriveBits(
           {name:"HKDF", hash:"SHA-256", salt, info: new TextEncoder().encode("encryption")}, base, 256),
         {name:"AES-GCM"}, false, ["encrypt","decrypt"]);
+      macKey = await crypto.subtle.importKey(
+        "raw", await crypto.subtle.deriveBits(
+          {name:"HKDF", hash:"SHA-256", salt, info: new TextEncoder().encode("integrity")}, base, 256),
+        {name:"HMAC", hash:"SHA-256"}, false, ["sign","verify"]);
+
+      // إعدادات فعّالة من السيرفر (مصدر الحقيقة)
+      cipherMode = ack.cipher;
+      useEnc = ack.encryption !== false;
+      integrity = ack.integrity !== false;
+      if (ack.classical_key) classicalKey = ack.classical_key;
 
       // 5) التحقق من توقيع السيرفر (ECDSA P-256)
       let ok = false;
@@ -357,8 +395,8 @@ async function start() {
       statusEl.textContent = "متصل";
       document.getElementById("text").disabled = false;
       document.getElementById("send").disabled = false;
-      log(useEnc ? "تم تأمين القناة — ECDH + HKDF + AES-GCM"
-                 : "⚠️ التشفير مُطفأ في السيرفر — الرسائل بالنص الواضح", "sys");
+      const desc = useEnc ? `تم تأمين القناة — ECDH + HKDF + ${cipherMode}` : "⚠️ التشفير مُطفأ في السيرفر — الرسائل بالنص الواضح";
+      log(desc, "sys");
       return;
     }
 
@@ -371,13 +409,26 @@ async function start() {
       try {
         let bytes = payload;
         if (useEnc) {
-          const nonce = payload.slice(0,12), tag = payload.slice(-16), ct = payload.slice(12,-16);
-          bytes = new Uint8Array(await crypto.subtle.decrypt(
-            {name:"AES-GCM", iv:nonce, tagLength:128}, encKey, concat(ct, tag)));
+          if (cipherMode === "VIGENERE") {
+            let body = payload;
+            if (payload.length >= 32 && integrity) {
+              const tag = payload.slice(-32), ct = payload.slice(0, -32);
+              const expect = await hmacTag(ct);
+              if (!equalBytes(tag, expect)) throw new Error("HMAC mismatch");
+              body = ct;
+            } else if (payload.length >= 32) {
+              body = payload.slice(0, -32); // السلامة مطفأة: نتجاهل الـ tag
+            }
+            bytes = vigenereTransform(body, classicalKey, true);
+          } else {
+            const nonce = payload.slice(0,12), tag = payload.slice(-16), ct = payload.slice(12,-16);
+            bytes = new Uint8Array(await crypto.subtle.decrypt(
+              {name:"AES-GCM", iv:nonce, tagLength:128}, encKey, concat(ct, tag)));
+          }
         }
         const m = JSON.parse(new TextDecoder().decode(bytes));
         log(`${m.name}: ${m.text}`, m.name === myName ? "me" : "other");
-      } catch (e) { log("⚠️ فشل فك التشفير", "sys"); }
+      } catch (e) { log("⚠️ فشل فك التشفير أو التحقق من السلامة", "sys"); }
     }
   };
 
@@ -392,9 +443,17 @@ async function send() {
 
   const plain = new TextEncoder().encode(JSON.stringify({name: myName, text}));
   if (useEnc) {
-    const nonce = crypto.getRandomValues(new Uint8Array(12));
-    const ctTag = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv:nonce}, encKey, plain));
-    ws.send(frame(T_MESSAGE, concat(nonce, ctTag), F_ENCRYPTED | F_GCM));
+    if (cipherMode === "VIGENERE") {
+      // فيجينير (بايتات) ثم Encrypt-then-MAC: HMAC على النص المشفّر
+      let body = vigenereTransform(plain, classicalKey, false);
+      let flags = F_ENCRYPTED;
+      if (integrity) { body = concat(body, await hmacTag(body)); flags |= F_MAC; }
+      ws.send(frame(T_MESSAGE, body, flags));
+    } else {
+      const nonce = crypto.getRandomValues(new Uint8Array(12));
+      const ctTag = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv:nonce}, encKey, plain));
+      ws.send(frame(T_MESSAGE, concat(nonce, ctTag), F_ENCRYPTED | F_GCM));
+    }
   } else {
     ws.send(frame(T_MESSAGE, plain, 0));
   }

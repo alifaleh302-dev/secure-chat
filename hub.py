@@ -78,9 +78,12 @@ class ChatHub:
         mode = hello.get("mode", mode)
         name = hello.get("name") or f"user-{self._counter + 1}"
 
-        # اختيار الخوارزمية: إعدادات السيرفر تحكم، لكن المتصفح يدعم AES-GCM فقط
+        # اختيار الخوارزمية: إعدادات السيرفر تحكم. المتصفح (Web Crypto) يدعم
+        # AES-GCM، وفيجينير مكتوبة بجافاسكربت. أي وضع آخر لا يتوفّر في المتصفح
+        # (RC4/ECB/CBC/CTR) → نرجع إلى AES-GCM.
+        BROWSER_CIPHERS = {"AES-GCM", "VIGENERE"}
         cipher = config.CIPHER
-        if mode == "browser" and cipher != "AES-GCM":
+        if mode == "browser" and cipher not in BROWSER_CIPHERS:
             cipher = "AES-GCM"
 
         # --- تبادل المفاتيح ---
@@ -106,6 +109,10 @@ class ChatHub:
             "encryption": config.ENCRYPTION,
             "integrity": config.INTEGRITY,
         }
+        # الشيفرات الكلاسيكية: نُبلّغ المفتاح البشري ليستخدمه العميل/المتصفح.
+        # (يظهر في Wireshark — وهذا مقصود تعليمياً، لا سرّياً.)
+        if cipher == "VIGENERE":
+            ack["classical_key"] = config.CLASSICAL_KEY
         transport.send_frame(
             protocol.pack_frame(protocol.T_HELLO_ACK, json.dumps(ack).encode())
         )

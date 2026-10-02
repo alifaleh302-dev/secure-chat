@@ -12,7 +12,7 @@ import os
 import struct
 
 import config
-from crypto import aes_modes, hmac_impl, rc4
+from crypto import aes_modes, hmac_impl, rc4, vigenere
 
 MAGIC = b"SCP1"
 VERSION = 1
@@ -33,7 +33,8 @@ F_MAC = 0b010
 F_GCM = 0b100
 
 # رموز الخوارزميات — تُتفاوض في المصافحة
-CIPHER_CODES = {"NONE": 0, "RC4": 1, "AES-ECB": 2, "AES-CBC": 3, "AES-CTR": 4, "AES-GCM": 5}
+CIPHER_CODES = {"NONE": 0, "RC4": 1, "AES-ECB": 2, "AES-CBC": 3, "AES-CTR": 4, "AES-GCM": 5,
+                "VIGENERE": 6}
 CODE_CIPHERS = {v: k for k, v in CIPHER_CODES.items()}
 
 
@@ -57,33 +58,40 @@ def encrypt_message(keys: dict, cipher: str, integrity: bool, plaintext: bytes) 
     if cipher == "NONE":
         return plaintext, 0
 
-    key = keys["enc"]
-
-    if cipher == "RC4":
-        ct = rc4.rc4_encrypt(key, plaintext)
+    # الشيفرات الكلاسيكية (فيجينير) لا تستخدم مفاتيح HKDF المشتقة من ECDH،
+    # بل مفتاحاً بشرياً قصيراً من الإعدادات — عن قصد ليكون قابلاً للكسر.
+    if cipher == "VIGENERE":
+        ct = vigenere.vigenere_encrypt(vigenere.resolve_key(config.CLASSICAL_KEY), plaintext)
         payload, flags = ct, F_ENCRYPTED
-
-    elif cipher == "AES-ECB":
-        ct = aes_modes.ecb_encrypt(key, plaintext)
-        payload, flags = ct, F_ENCRYPTED
-
-    elif cipher == "AES-CBC":
-        iv = os.urandom(16)
-        payload = iv + aes_modes.cbc_encrypt(key, plaintext, iv)
-        flags = F_ENCRYPTED
-
-    elif cipher == "AES-CTR":
-        nonce = os.urandom(8)
-        payload = nonce + aes_modes.ctr_encrypt(key, nonce, plaintext)
-        flags = F_ENCRYPTED
-
-    elif cipher == "AES-GCM":
-        nonce = os.urandom(12)
-        ct, tag = aes_modes.gcm_encrypt(key, nonce, plaintext)
-        return nonce + ct + tag, F_ENCRYPTED | F_GCM
 
     else:
-        raise ValueError(f"خوارزمية غير معروفة: {cipher}")
+        key = keys["enc"]
+
+        if cipher == "RC4":
+            ct = rc4.rc4_encrypt(key, plaintext)
+            payload, flags = ct, F_ENCRYPTED
+
+        elif cipher == "AES-ECB":
+            ct = aes_modes.ecb_encrypt(key, plaintext)
+            payload, flags = ct, F_ENCRYPTED
+
+        elif cipher == "AES-CBC":
+            iv = os.urandom(16)
+            payload = iv + aes_modes.cbc_encrypt(key, plaintext, iv)
+            flags = F_ENCRYPTED
+
+        elif cipher == "AES-CTR":
+            nonce = os.urandom(8)
+            payload = nonce + aes_modes.ctr_encrypt(key, nonce, plaintext)
+            flags = F_ENCRYPTED
+
+        elif cipher == "AES-GCM":
+            nonce = os.urandom(12)
+            ct, tag = aes_modes.gcm_encrypt(key, nonce, plaintext)
+            return nonce + ct + tag, F_ENCRYPTED | F_GCM
+
+        else:
+            raise ValueError(f"خوارزمية غير معروفة: {cipher}")
 
     # Encrypt-then-MAC: HMAC على النص المشفّر كاملاً (بعد التشفير!)
     if integrity:
@@ -126,5 +134,7 @@ def decrypt_message(keys: dict, cipher: str, integrity: bool, payload: bytes, fl
     if cipher == "AES-CTR":
         nonce, ct = payload[:8], payload[8:]
         return aes_modes.ctr_decrypt(key, nonce, ct)
+    if cipher == "VIGENERE":
+        return vigenere.vigenere_decrypt(vigenere.resolve_key(config.CLASSICAL_KEY), payload)
 
     raise ValueError(f"خوارزمية غير معروفة: {cipher}")

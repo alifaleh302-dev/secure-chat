@@ -59,6 +59,13 @@ ENCRYPTION = _flag("ENCRYPTION", True)
 #   "AES-GCM" : ✅ تشفير + سلامة مدمجان (AEAD)
 CIPHER = _text("CIPHER", "AES-CTR")
 
+# مفتاح الشيفرات الكلاسيكية (فيجينير حالياً).
+# ⚠️ هذا مفتاح *منفصل عن* مفاتيح HKDF المشتقة من تبادل ECDH — عن قصد:
+#    لو اشتققناه من HKDF لصار قوياً (256-bit) ولتعذّر كسره، فيموت الدرس.
+#    هنا نستخدم مفتاحاً بشرياً قصيراً (افتراضي "ahmed") يمكن كسره فعلاً.
+#    يُرسل في المصافحة ليراه العميل والمتصفح (ويظهر في Wireshark).
+CLASSICAL_KEY = _text("CLASSICAL_KEY", "ahmed")
+
 # ============================================================
 # 2) السلامة — Integrity
 # ============================================================
@@ -126,6 +133,7 @@ def get_all() -> dict:
         "MAC_MODE": MAC_MODE,
         "AUTHENTICATION": AUTHENTICATION,
         "KEY_EXCHANGE": KEY_EXCHANGE,
+        "CLASSICAL_KEY": CLASSICAL_KEY,
         "HOST": HOST,
         "PORT": PORT,
     }
@@ -133,10 +141,10 @@ def get_all() -> dict:
 
 def update(values: dict) -> dict:
     """تحديث الإعدادات مباشرة في الذاكرة (من واجهة الويب)."""
-    global ENCRYPTION, CIPHER, INTEGRITY, MAC_MODE, AUTHENTICATION, KEY_EXCHANGE
+    global ENCRYPTION, CIPHER, INTEGRITY, MAC_MODE, AUTHENTICATION, KEY_EXCHANGE, CLASSICAL_KEY
     bools = {"ENCRYPTION", "INTEGRITY", "AUTHENTICATION"}
     allowed = {
-        "CIPHER": {"RC4", "AES-ECB", "AES-CBC", "AES-CTR", "AES-GCM"},
+        "CIPHER": {"RC4", "AES-ECB", "AES-CBC", "AES-CTR", "AES-GCM", "VIGENERE"},
         "MAC_MODE": {"HMAC", "GCM"},
         "KEY_EXCHANGE": {"ECDH", "HARDCODED"},
     }
@@ -145,6 +153,8 @@ def update(values: dict) -> dict:
             globals()[key] = bool(value)
         elif key in allowed and value in allowed[key]:
             globals()[key] = value
+        elif key == "CLASSICAL_KEY" and isinstance(value, str) and value.strip():
+            CLASSICAL_KEY = value.strip()
     return get_all()
 
 
